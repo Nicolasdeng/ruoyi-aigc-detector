@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.AiDetectionMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.AiDetectionRecord" id="AiDetectionRecordResult">
+        <result property="id"    column="id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="fileUrl"    column="file_url"    />
+        <result property="fileType"    column="file_type"    />
+        <result property="fileSize"    column="file_size"    />
+        <result property="detectionResult"    column="detection_result"    />
+        <result property="confidenceScore"    column="confidence_score"    />
+        <result property="detectionDetails"    column="detection_details"    />
+        <result property="apiResults"    column="api_results"    />
+        <result property="status"    column="status"    />
+        <result property="errorMessage"    column="error_message"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectRecordVo">
+        select id, user_id, file_url, file_type, file_size, detection_result, 
+               confidence_score, detection_details, api_results, status, 
+               error_message, create_time, update_time, remark
+        from ai_detection_record
+    </sql>
+
+    <select id="selectRecordList" parameterType="com.ruoyi.web.domain.AiDetectionRecord" resultMap="AiDetectionRecordResult">
+        <include refid="selectRecordVo"/>
+        <where>  
+            <if test="userId != null "> and user_id = #{userId}</if>
+            <if test="fileType != null  and fileType != ''"> and file_type = #{fileType}</if>
+            <if test="detectionResult != null  and detectionResult != ''"> and detection_result = #{detectionResult}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+            <if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+                and date_format(create_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')
+            </if>
+            <if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+                and date_format(create_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+    
+    <select id="selectRecordById" parameterType="Long" resultMap="AiDetectionRecordResult">
+        <include refid="selectRecordVo"/>
+        where id = #{id}
+    </select>
+        
+    <insert id="insertRecord" parameterType="com.ruoyi.web.domain.AiDetectionRecord" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_detection_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="fileUrl != null and fileUrl != ''">file_url,</if>
+            <if test="fileType != null and fileType != ''">file_type,</if>
+            <if test="fileSize != null">file_size,</if>
+            <if test="detectionResult != null">detection_result,</if>
+            <if test="confidenceScore != null">confidence_score,</if>
+            <if test="detectionDetails != null">detection_details,</if>
+            <if test="apiResults != null">api_results,</if>
+            <if test="status != null">status,</if>
+            <if test="errorMessage != null">error_message,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="fileUrl != null and fileUrl != ''">#{fileUrl},</if>
+            <if test="fileType != null and fileType != ''">#{fileType},</if>
+            <if test="fileSize != null">#{fileSize},</if>
+            <if test="detectionResult != null">#{detectionResult},</if>
+            <if test="confidenceScore != null">#{confidenceScore},</if>
+            <if test="detectionDetails != null">#{detectionDetails},</if>
+            <if test="apiResults != null">#{apiResults},</if>
+            <if test="status != null">#{status},</if>
+            <if test="errorMessage != null">#{errorMessage},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateRecord" parameterType="com.ruoyi.web.domain.AiDetectionRecord">
+        update ai_detection_record
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="fileUrl != null and fileUrl != ''">file_url = #{fileUrl},</if>
+            <if test="fileType != null and fileType != ''">file_type = #{fileType},</if>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="detectionResult != null">detection_result = #{detectionResult},</if>
+            <if test="confidenceScore != null">confidence_score = #{confidenceScore},</if>
+            <if test="detectionDetails != null">detection_details = #{detectionDetails},</if>
+            <if test="apiResults != null">api_results = #{apiResults},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteRecordById" parameterType="Long">
+        delete from ai_detection_record where id = #{id}
+    </delete>
+
+    <delete id="deleteRecordByIds" parameterType="String">
+        delete from ai_detection_record where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectTotalCount" resultType="int">
+        select count(*) from ai_detection_record
+    </select>
+
+    <select id="selectCountByResult" resultType="int">
+        select count(*) from ai_detection_record where detection_result = #{result}
+    </select>
+
+    <select id="selectTodayCount" resultType="int">
+        select count(*) from ai_detection_record 
+        where date_format(create_time,'%Y-%m-%d') = date_format(now(),'%Y-%m-%d')
+    </select>
+</mapper>

@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.PaperDetectionMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.PaperDetectionRecord" id="PaperDetectionRecordResult">
+        <result property="id"    column="id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="title"    column="title"    />
+        <result property="content"    column="content"    />
+        <result property="fileUrl"    column="file_url"    />
+        <result property="wordCount"    column="word_count"    />
+        <result property="aiRiskLevel"    column="ai_risk_level"    />
+        <result property="aiScore"    column="ai_score"    />
+        <result property="duplicateLevel"    column="duplicate_level"    />
+        <result property="duplicateScore"    column="duplicate_score"    />
+        <result property="styleScore"    column="style_score"    />
+        <result property="totalParagraphs"    column="total_paragraphs"    />
+        <result property="highRiskParagraphs"    column="high_risk_paragraphs"    />
+        <result property="status"    column="status"    />
+        <result property="errorMsg"    column="error_msg"    />
+        <result property="detectDuration"    column="detect_duration"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <resultMap type="com.ruoyi.web.domain.PaperParagraphDetail" id="PaperParagraphDetailResult">
+        <result property="id"    column="id"    />
+        <result property="detectionId"    column="detection_id"    />
+        <result property="paragraphIndex"    column="paragraph_index"    />
+        <result property="paragraphContent"    column="paragraph_content"    />
+        <result property="wordCount"    column="word_count"    />
+        <result property="aiRisk"    column="ai_risk"    />
+        <result property="riskLevel"    column="risk_level"    />
+        <result property="riskTypes"    column="risk_types"    />
+        <result property="riskReasons"    column="risk_reasons"    />
+        <result property="suggestions"    column="suggestions"    />
+        <result property="apiResults"    column="api_results"    />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <sql id="selectPaperDetectionRecordVo">
+        select id, user_id, title, content, file_url, word_count, ai_risk_level, ai_score, 
+               duplicate_level, duplicate_score, style_score, total_paragraphs, high_risk_paragraphs, 
+               status, error_msg, detect_duration, create_time, update_time 
+        from paper_detection_record
+    </sql>
+
+    <select id="selectPaperDetectionRecordList" parameterType="com.ruoyi.web.domain.PaperDetectionRecord" resultMap="PaperDetectionRecordResult">
+        <include refid="selectPaperDetectionRecordVo"/>
+        <where>  
+            <if test="userId != null "> and user_id = #{userId}</if>
+            <if test="title != null  and title != ''"> and title like concat('%', #{title}, '%')</if>
+            <if test="aiRiskLevel != null  and aiRiskLevel != ''"> and ai_risk_level = #{aiRiskLevel}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+        </where>
+        order by create_time desc
+    </select>
+    
+    <select id="selectPaperDetectionRecordById" parameterType="Long" resultMap="PaperDetectionRecordResult">
+        <include refid="selectPaperDetectionRecordVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectPaperDetectionRecordByUserId" parameterType="Long" resultMap="PaperDetectionRecordResult">
+        <include refid="selectPaperDetectionRecordVo"/>
+        where user_id = #{userId}
+        order by create_time desc
+    </select>
+
+    <insert id="insertPaperDetectionRecord" parameterType="com.ruoyi.web.domain.PaperDetectionRecord" useGeneratedKeys="true" keyProperty="id">
+        insert into paper_detection_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="title != null and title != ''">title,</if>
+            <if test="content != null and content != ''">content,</if>
+            <if test="fileUrl != null">file_url,</if>
+            <if test="wordCount != null">word_count,</if>
+            <if test="aiRiskLevel != null">ai_risk_level,</if>
+            <if test="aiScore != null">ai_score,</if>
+            <if test="duplicateLevel != null">duplicate_level,</if>
+            <if test="duplicateScore != null">duplicate_score,</if>
+            <if test="styleScore != null">style_score,</if>
+            <if test="totalParagraphs != null">total_paragraphs,</if>
+            <if test="highRiskParagraphs != null">high_risk_paragraphs,</if>
+            <if test="status != null">status,</if>
+            <if test="errorMsg != null">error_msg,</if>
+            <if test="detectDuration != null">detect_duration,</if>
+            create_time
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="title != null and title != ''">#{title},</if>
+            <if test="content != null and content != ''">#{content},</if>
+            <if test="fileUrl != null">#{fileUrl},</if>
+            <if test="wordCount != null">#{wordCount},</if>
+            <if test="aiRiskLevel != null">#{aiRiskLevel},</if>
+            <if test="aiScore != null">#{aiScore},</if>
+            <if test="duplicateLevel != null">#{duplicateLevel},</if>
+            <if test="duplicateScore != null">#{duplicateScore},</if>
+            <if test="styleScore != null">#{styleScore},</if>
+            <if test="totalParagraphs != null">#{totalParagraphs},</if>
+            <if test="highRiskParagraphs != null">#{highRiskParagraphs},</if>
+            <if test="status != null">#{status},</if>
+            <if test="errorMsg != null">#{errorMsg},</if>
+            <if test="detectDuration != null">#{detectDuration},</if>
+            sysdate()
+         </trim>
+    </insert>
+
+    <update id="updatePaperDetectionRecord" parameterType="com.ruoyi.web.domain.PaperDetectionRecord">
+        update paper_detection_record
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="wordCount != null">word_count = #{wordCount},</if>
+            <if test="aiRiskLevel != null">ai_risk_level = #{aiRiskLevel},</if>
+            <if test="aiScore != null">ai_score = #{aiScore},</if>
+            <if test="duplicateLevel != null">duplicate_level = #{duplicateLevel},</if>
+            <if test="duplicateScore != null">duplicate_score = #{duplicateScore},</if>
+            <if test="styleScore != null">style_score = #{styleScore},</if>
+            <if test="totalParagraphs != null">total_paragraphs = #{totalParagraphs},</if>
+            <if test="highRiskParagraphs != null">high_risk_paragraphs = #{highRiskParagraphs},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="errorMsg != null">error_msg = #{errorMsg},</if>
+            <if test="detectDuration != null">detect_duration = #{detectDuration},</if>
+            update_time = sysdate()
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deletePaperDetectionRecordById" parameterType="Long">
+        delete from paper_detection_record where id = #{id}
+    </delete>
+
+    <delete id="deletePaperDetectionRecordByIds" parameterType="String">
+        delete from paper_detection_record where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 段落详情相关 -->
+    <select id="selectParagraphDetailsByDetectionId" parameterType="Long" resultMap="PaperParagraphDetailResult">
+        select id, detection_id, paragraph_index, paragraph_content, word_count, ai_risk, 
+               risk_level, risk_types, risk_reasons, suggestions, api_results, create_time
+        from paper_paragraph_detail
+        where detection_id = #{detectionId}
+        order by paragraph_index
+    </select>
+
+    <select id="selectHighRiskParagraphs" parameterType="Long" resultMap="PaperParagraphDetailResult">
+        select id, detection_id, paragraph_index, paragraph_content, word_count, ai_risk, 
+               risk_level, risk_types, risk_reasons, suggestions, api_results, create_time
+        from paper_paragraph_detail
+        where detection_id = #{detectionId} and risk_level in ('medium', 'high')
+        order by ai_risk desc, paragraph_index
+    </select>
+
+    <insert id="insertParagraphDetail" parameterType="com.ruoyi.web.domain.PaperParagraphDetail" useGeneratedKeys="true" keyProperty="id">
+        insert into paper_paragraph_detail
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="detectionId != null">detection_id,</if>
+            <if test="paragraphIndex != null">paragraph_index,</if>
+            <if test="paragraphContent != null">paragraph_content,</if>
+            <if test="wordCount != null">word_count,</if>
+            <if test="aiRisk != null">ai_risk,</if>
+            <if test="riskLevel != null">risk_level,</if>
+            <if test="riskTypes != null">risk_types,</if>
+            <if test="riskReasons != null">risk_reasons,</if>
+            <if test="suggestions != null">suggestions,</if>
+            <if test="apiResults != null">api_results,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="detectionId != null">#{detectionId},</if>
+            <if test="paragraphIndex != null">#{paragraphIndex},</if>
+            <if test="paragraphContent != null">#{paragraphContent},</if>
+            <if test="wordCount != null">#{wordCount},</if>
+            <if test="aiRisk != null">#{aiRisk},</if>
+            <if test="riskLevel != null">#{riskLevel},</if>
+            <if test="riskTypes != null">#{riskTypes},</if>
+            <if test="riskReasons != null">#{riskReasons},</if>
+            <if test="suggestions != null">#{suggestions},</if>
+            <if test="apiResults != null">#{apiResults},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <insert id="batchInsertParagraphDetails">
+        insert into paper_paragraph_detail(detection_id, paragraph_index, paragraph_content, word_count, 
+                                          ai_risk, risk_level, risk_types, risk_reasons, suggestions, api_results, create_time)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.detectionId}, #{item.paragraphIndex}, #{item.paragraphContent}, #{item.wordCount},
+             #{item.aiRisk}, #{item.riskLevel}, #{item.riskTypes}, #{item.riskReasons}, 
+             #{item.suggestions}, #{item.apiResults}, sysdate())
+        </foreach>
+    </insert>
+
+</mapper>

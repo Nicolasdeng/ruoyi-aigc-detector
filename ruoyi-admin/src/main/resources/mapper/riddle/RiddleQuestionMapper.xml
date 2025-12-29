@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.riddle.RiddleQuestionMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.riddle.RiddleQuestion" id="RiddleQuestionResult">
+        <result property="id"    column="id"    />
+        <result property="category"    column="category"    />
+        <result property="difficulty"    column="difficulty"    />
+        <result property="question"    column="question"    />
+        <result property="answer"    column="answer"    />
+        <result property="explanation"    column="explanation"    />
+        <result property="views"    column="views"    />
+        <result property="likes"    column="likes"    />
+        <result property="status"    column="status"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectRiddleQuestionVo">
+        select id, category, difficulty, question, answer, explanation, views, likes, status, create_by, create_time, update_by, update_time, remark from riddle_question
+    </sql>
+
+    <select id="selectRiddleQuestionList" parameterType="com.ruoyi.web.domain.riddle.RiddleQuestion" resultMap="RiddleQuestionResult">
+        <include refid="selectRiddleQuestionVo"/>
+        <where>  
+            <if test="category != null  and category != ''"> and category = #{category}</if>
+            <if test="difficulty != null  and difficulty != ''"> and difficulty = #{difficulty}</if>
+            <if test="question != null  and question != ''"> and question like concat('%', #{question}, '%')</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+        </where>
+        order by id desc
+    </select>
+    
+    <select id="selectRiddleQuestionById" parameterType="Long" resultMap="RiddleQuestionResult">
+        <include refid="selectRiddleQuestionVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectRandomQuestion" resultMap="RiddleQuestionResult">
+        <include refid="selectRiddleQuestionVo"/>
+        <where>
+            status = '0'
+            <if test="category != null and category != ''">
+                and category = #{category}
+            </if>
+            <if test="difficulty != null and difficulty != ''">
+                and difficulty = #{difficulty}
+            </if>
+        </where>
+        order by RAND()
+        limit 1
+    </select>
+        
+    <insert id="insertRiddleQuestion" parameterType="com.ruoyi.web.domain.riddle.RiddleQuestion" useGeneratedKeys="true" keyProperty="id">
+        insert into riddle_question
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="category != null and category != ''">category,</if>
+            <if test="difficulty != null and difficulty != ''">difficulty,</if>
+            <if test="question != null and question != ''">question,</if>
+            <if test="answer != null and answer != ''">answer,</if>
+            <if test="explanation != null">explanation,</if>
+            <if test="views != null">views,</if>
+            <if test="likes != null">likes,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="category != null and category != ''">#{category},</if>
+            <if test="difficulty != null and difficulty != ''">#{difficulty},</if>
+            <if test="question != null and question != ''">#{question},</if>
+            <if test="answer != null and answer != ''">#{answer},</if>
+            <if test="explanation != null">#{explanation},</if>
+            <if test="views != null">#{views},</if>
+            <if test="likes != null">#{likes},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateRiddleQuestion" parameterType="com.ruoyi.web.domain.riddle.RiddleQuestion">
+        update riddle_question
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="category != null and category != ''">category = #{category},</if>
+            <if test="difficulty != null and difficulty != ''">difficulty = #{difficulty},</if>
+            <if test="question != null and question != ''">question = #{question},</if>
+            <if test="answer != null and answer != ''">answer = #{answer},</if>
+            <if test="explanation != null">explanation = #{explanation},</if>
+            <if test="views != null">views = #{views},</if>
+            <if test="likes != null">likes = #{likes},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteRiddleQuestionById" parameterType="Long">
+        delete from riddle_question where id = #{id}
+    </delete>
+
+    <delete id="deleteRiddleQuestionByIds" parameterType="String">
+        delete from riddle_question where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <update id="increaseViews" parameterType="Long">
+        update riddle_question set views = views + 1 where id = #{id}
+    </update>
+
+    <update id="increaseLikes" parameterType="Long">
+        update riddle_question set likes = likes + 1 where id = #{id}
+    </update>
+</mapper>

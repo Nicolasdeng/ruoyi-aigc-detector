@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.riddle.RiddleHistoryMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.riddle.RiddleHistory" id="RiddleHistoryResult">
+        <result property="id"    column="id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="questionId"    column="question_id"    />
+        <result property="userAnswer"    column="user_answer"    />
+        <result property="isCorrect"    column="is_correct"    />
+        <result property="answerTime"    column="answer_time"    />
+        <result property="timeSpent"    column="time_spent"    />
+        <association property="question" column="question_id" javaType="com.ruoyi.web.domain.riddle.RiddleQuestion" resultMap="questionResult" />
+    </resultMap>
+
+    <resultMap type="com.ruoyi.web.domain.riddle.RiddleQuestion" id="questionResult">
+        <result property="id"    column="q_id"    />
+        <result property="category"    column="q_category"    />
+        <result property="difficulty"    column="q_difficulty"    />
+        <result property="question"    column="q_question"    />
+        <result property="answer"    column="q_answer"    />
+        <result property="explanation"    column="q_explanation"    />
+    </resultMap>
+
+    <sql id="selectRiddleHistoryVo">
+        select h.id, h.user_id, h.question_id, h.user_answer, h.is_correct, h.answer_time, h.time_spent,
+               q.id as q_id, q.category as q_category, q.difficulty as q_difficulty, 
+               q.question as q_question, q.answer as q_answer, q.explanation as q_explanation
+        from riddle_history h
+        left join riddle_question q on h.question_id = q.id
+    </sql>
+
+    <select id="selectRiddleHistoryList" parameterType="com.ruoyi.web.domain.riddle.RiddleHistory" resultMap="RiddleHistoryResult">
+        <include refid="selectRiddleHistoryVo"/>
+        <where>  
+            <if test="userId != null "> and h.user_id = #{userId}</if>
+            <if test="questionId != null "> and h.question_id = #{questionId}</if>
+            <if test="isCorrect != null  and isCorrect != ''"> and h.is_correct = #{isCorrect}</if>
+        </where>
+        order by h.answer_time desc
+    </select>
+
+    <insert id="insertRiddleHistory" parameterType="com.ruoyi.web.domain.riddle.RiddleHistory">
+        insert into riddle_history
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="questionId != null">question_id,</if>
+            <if test="userAnswer != null">user_answer,</if>
+            <if test="isCorrect != null">is_correct,</if>
+            <if test="answerTime != null">answer_time,</if>
+            <if test="timeSpent != null">time_spent,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="questionId != null">#{questionId},</if>
+            <if test="userAnswer != null">#{userAnswer},</if>
+            <if test="isCorrect != null">#{isCorrect},</if>
+            <if test="answerTime != null">#{answerTime},</if>
+            <if test="timeSpent != null">#{timeSpent},</if>
+         </trim>
+    </insert>
+
+    <select id="selectUserStatistics" parameterType="Long" resultType="java.util.HashMap">
+        select 
+            count(*) as total_count,
+            sum(case when is_correct = '1' then 1 else 0 end) as correct_count,
+            sum(case when is_correct = '0' then 1 else 0 end) as wrong_count,
+            avg(time_spent) as avg_time
+        from riddle_history
+        where user_id = #{userId}
+    </select>
+
+    <select id="selectByUserAndQuestion" resultMap="RiddleHistoryResult">
+        select h.id, h.user_id, h.question_id, h.user_answer, h.is_correct, h.answer_time, h.time_spent
+        from riddle_history h
+        where h.user_id = #{userId} and h.question_id = #{questionId}
+        order by h.answer_time desc
+        limit 1
+    </select>
+</mapper>

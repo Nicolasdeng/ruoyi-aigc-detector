@@ -68,13 +68,13 @@ spring:
   # redis 配置
   redis:
     # 地址
-    host: localhost
+    host: 127.0.0.1
     # 端口，默认为6379
     port: 6379
     # 数据库索引
     database: 0
     # 密码
-    password:
+    password: 123456
     # 连接超时时间
     timeout: 10s
     lettuce:
@@ -131,6 +131,36 @@ xss:
   # 过滤开关
   enabled: true
   # 排除链接（多个用逗号分隔）
-  excludes: /system/notice
+  excludes: /system/notice,/ai/detection/*
   # 匹配链接
   urlPatterns: /system/*,/monitor/*,/tool/*
+
+# AI检测配置
+ai:
+  detection:
+    # 全局超时配置（秒）
+    timeout: 30
+    
+    # ONNX本地模型配置（暂时关闭，因为没有合适的模型）
+    onnx:
+      enabled: false  # 关闭ONNX检测器
+      model-path: models/ai-image-detector/model.onnx
+      input-size: 224
+    
+    # Hugging Face API配置
+    huggingface:
+      # API Token (请在 https://huggingface.co/settings/tokens 获取)
+      # 留空将使用免费额度（有限制但够用）
+      token: 
+      enabled: true  # 启用Hugging Face API
+    
+    # 代理配置（访问HuggingFace必需）
+    proxy:
+      enabled: true  # 启用代理
+      host: 127.0.0.1
+      port: 7897  # 修改为你的Clash端口
+    
+    # OpenAI API配置
+    openai:
+      # API Key (请在 https://platform.openai.com/account/api-keys 获取)
+      key:

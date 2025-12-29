@@ -89,8 +89,17 @@ public class LogAspect
     {
         try
         {
-            // 获取当前的用户
-            LoginUser loginUser = SecurityUtils.getLoginUser();
+            // 获取当前的用户（对于匿名接口可能获取失败）
+            LoginUser loginUser = null;
+            try
+            {
+                loginUser = SecurityUtils.getLoginUser();
+            }
+            catch (Exception ex)
+            {
+                // 匿名接口获取用户信息会失败，这是正常的，记录debug日志即可
+                log.debug("无法获取登录用户信息（可能是匿名接口）: {}", ex.getMessage());
+            }
 
             // *========数据库日志=========*//
             SysOperLog operLog = new SysOperLog();
@@ -107,6 +116,11 @@ public class LogAspect
                 {
                     operLog.setDeptName(currentUser.getDept().getDeptName());
                 }
+            }
+            else
+            {
+                // 匿名用户
+                operLog.setOperName("匿名用户");
             }
 
             if (e != null)
