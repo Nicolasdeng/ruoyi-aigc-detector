@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.WechatUserMapper">
+    
+    <resultMap type="WechatUser" id="WechatUserResult">
+        <id     property="userId"     column="user_id"     />
+        <result property="openid"     column="openid"      />
+        <result property="unionid"    column="unionid"     />
+        <result property="sessionKey" column="session_key" />
+        <result property="nickName"   column="nick_name"   />
+        <result property="avatarUrl"  column="avatar_url"  />
+        <result property="gender"     column="gender"      />
+        <result property="country"    column="country"     />
+        <result property="province"   column="province"    />
+        <result property="city"       column="city"        />
+        <result property="phone"      column="phone"       />
+        <result property="status"     column="status"      />
+        <result property="delFlag"    column="del_flag"    />
+        <result property="loginIp"    column="login_ip"    />
+        <result property="loginDate"  column="login_date"  />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="selectWechatUserVo">
+        select user_id, openid, unionid, session_key, nick_name, avatar_url, gender, 
+               country, province, city, phone, status, del_flag, login_ip, login_date, 
+               create_time, update_time
+        from wechat_user
+    </sql>
+
+    <select id="selectWechatUserList" parameterType="WechatUser" resultMap="WechatUserResult">
+        <include refid="selectWechatUserVo"/>
+        <where>  
+            <if test="openid != null and openid != ''"> and openid = #{openid}</if>
+            <if test="unionid != null and unionid != ''"> and unionid = #{unionid}</if>
+            <if test="nickName != null and nickName != ''"> and nick_name like concat('%', #{nickName}, '%')</if>
+            <if test="phone != null and phone != ''"> and phone = #{phone}</if>
+            <if test="status != null"> and status = #{status}</if>
+            <if test="delFlag != null and delFlag != ''"> and del_flag = #{delFlag}</if>
+        </where>
+    </select>
+    
+    <select id="selectWechatUserByUserId" parameterType="Long" resultMap="WechatUserResult">
+        <include refid="selectWechatUserVo"/>
+        where user_id = #{userId}
+    </select>
+
+    <select id="selectWechatUserByOpenid" parameterType="String" resultMap="WechatUserResult">
+        <include refid="selectWechatUserVo"/>
+        where openid = #{openid} and del_flag = '0'
+    </select>
+        
+    <insert id="insertWechatUser" parameterType="WechatUser" useGeneratedKeys="true" keyProperty="userId">
+        insert into wechat_user
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="openid != null and openid != ''">openid,</if>
+            <if test="unionid != null and unionid != ''">unionid,</if>
+            <if test="sessionKey != null and sessionKey != ''">session_key,</if>
+            <if test="nickName != null and nickName != ''">nick_name,</if>
+            <if test="avatarUrl != null and avatarUrl != ''">avatar_url,</if>
+            <if test="gender != null">gender,</if>
+            <if test="country != null and country != ''">country,</if>
+            <if test="province != null and province != ''">province,</if>
+            <if test="city != null and city != ''">city,</if>
+            <if test="phone != null and phone != ''">phone,</if>
+            <if test="status != null">status,</if>
+            <if test="delFlag != null">del_flag,</if>
+            <if test="loginIp != null and loginIp != ''">login_ip,</if>
+            <if test="loginDate != null">login_date,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="openid != null and openid != ''">#{openid},</if>
+            <if test="unionid != null and unionid != ''">#{unionid},</if>
+            <if test="sessionKey != null and sessionKey != ''">#{sessionKey},</if>
+            <if test="nickName != null and nickName != ''">#{nickName},</if>
+            <if test="avatarUrl != null and avatarUrl != ''">#{avatarUrl},</if>
+            <if test="gender != null">#{gender},</if>
+            <if test="country != null and country != ''">#{country},</if>
+            <if test="province != null and province != ''">#{province},</if>
+            <if test="city != null and city != ''">#{city},</if>
+            <if test="phone != null and phone != ''">#{phone},</if>
+            <if test="status != null">#{status},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+            <if test="loginIp != null and loginIp != ''">#{loginIp},</if>
+            <if test="loginDate != null">#{loginDate},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateWechatUser" parameterType="WechatUser">
+        update wechat_user
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="unionid != null and unionid != ''">unionid = #{unionid},</if>
+            <if test="sessionKey != null and sessionKey != ''">session_key = #{sessionKey},</if>
+            <if test="nickName != null and nickName != ''">nick_name = #{nickName},</if>
+            <if test="avatarUrl != null and avatarUrl != ''">avatar_url = #{avatarUrl},</if>
+            <if test="gender != null">gender = #{gender},</if>
+            <if test="country != null and country != ''">country = #{country},</if>
+            <if test="province != null and province != ''">province = #{province},</if>
+            <if test="city != null and city != ''">city = #{city},</if>
+            <if test="phone != null and phone != ''">phone = #{phone},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="delFlag != null">del_flag = #{delFlag},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where user_id = #{userId}
+    </update>
+
+    <update id="updateLoginInfo" parameterType="WechatUser">
+        update wechat_user
+        set login_ip = #{loginIp}, login_date = #{loginDate}
+        where user_id = #{userId}
+    </update>
+
+    <delete id="deleteWechatUserByUserId" parameterType="Long">
+        update wechat_user set del_flag = '2' where user_id = #{userId}
+    </delete>
+
+    <delete id="deleteWechatUserByUserIds" parameterType="String">
+        update wechat_user set del_flag = '2' where user_id in 
+        <foreach item="userId" collection="array" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+    </delete>
+
+</mapper>

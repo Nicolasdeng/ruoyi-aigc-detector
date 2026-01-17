@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.SysUserAgreementRecordMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.SysUserAgreementRecord" id="SysUserAgreementRecordResult">
+        <result property="recordId"          column="record_id"          />
+        <result property="userId"            column="user_id"            />
+        <result property="agreementId"       column="agreement_id"       />
+        <result property="agreementType"     column="agreement_type"     />
+        <result property="agreementVersion"  column="agreement_version"  />
+        <result property="confirmTime"       column="confirm_time"       />
+        <result property="ipAddress"         column="ip_address"         />
+        <result property="userAgent"         column="user_agent"         />
+        <result property="deviceInfo"        column="device_info"        />
+        <result property="remark"            column="remark"             />
+    </resultMap>
+
+    <sql id="selectSysUserAgreementRecordVo">
+        select record_id, user_id, agreement_id, agreement_type, agreement_version, 
+               confirm_time, ip_address, user_agent, device_info, remark
+        from sys_user_agreement_record
+    </sql>
+
+    <!-- 检查用户是否已确认指定类型的协议 -->
+    <select id="checkUserAgreement" resultType="boolean">
+        select count(*) > 0
+        from sys_user_agreement_record
+        where user_id = #{userId}
+          and agreement_type = #{agreementType}
+          and agreement_version = #{requiredVersion}
+    </select>
+
+    <!-- 查询用户最新的协议确认记录 -->
+    <select id="selectLatestByUserAndType" resultMap="SysUserAgreementRecordResult">
+        <include refid="selectSysUserAgreementRecordVo"/>
+        where user_id = #{userId}
+          and agreement_type = #{agreementType}
+        order by confirm_time desc
+        limit 1
+    </select>
+
+    <!-- 根据ID查询记录 -->
+    <select id="selectRecordById" resultMap="SysUserAgreementRecordResult">
+        <include refid="selectSysUserAgreementRecordVo"/>
+        where record_id = #{recordId}
+    </select>
+
+    <!-- 查询用户的所有确认记录 -->
+    <select id="selectRecordsByUserId" resultMap="SysUserAgreementRecordResult">
+        <include refid="selectSysUserAgreementRecordVo"/>
+        where user_id = #{userId}
+        <if test="agreementType != null and agreementType != ''">
+            and agreement_type = #{agreementType}
+        </if>
+        order by confirm_time desc
+    </select>
+
+    <!-- 查询记录列表 -->
+    <select id="selectRecordList" resultMap="SysUserAgreementRecordResult">
+        <include refid="selectSysUserAgreementRecordVo"/>
+        <where>
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+            <if test="agreementType != null and agreementType != ''">
+                and agreement_type = #{agreementType}
+            </if>
+            <if test="agreementVersion != null and agreementVersion != ''">
+                and agreement_version = #{agreementVersion}
+            </if>
+            <if test="params.beginTime != null and params.beginTime != ''">
+                and confirm_time &gt;= #{params.beginTime}
+            </if>
+            <if test="params.endTime != null and params.endTime != ''">
+                and confirm_time &lt;= #{params.endTime}
+            </if>
+        </where>
+        order by confirm_time desc
+    </select>
+
+    <!-- 新增确认记录 -->
+    <insert id="insertRecord" parameterType="com.ruoyi.web.domain.SysUserAgreementRecord" useGeneratedKeys="true" keyProperty="recordId">
+        insert into sys_user_agreement_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="agreementId != null">agreement_id,</if>
+            <if test="agreementType != null and agreementType != ''">agreement_type,</if>
+            <if test="agreementVersion != null and agreementVersion != ''">agreement_version,</if>
+            <if test="ipAddress != null and ipAddress != ''">ip_address,</if>
+            <if test="userAgent != null and userAgent != ''">user_agent,</if>
+            <if test="deviceInfo != null and deviceInfo != ''">device_info,</if>
+            <if test="remark != null">remark,</if>
+            confirm_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="agreementId != null">#{agreementId},</if>
+            <if test="agreementType != null and agreementType != ''">#{agreementType},</if>
+            <if test="agreementVersion != null and agreementVersion != ''">#{agreementVersion},</if>
+            <if test="ipAddress != null and ipAddress != ''">#{ipAddress},</if>
+            <if test="userAgent != null and userAgent != ''">#{userAgent},</if>
+            <if test="deviceInfo != null and deviceInfo != ''">#{deviceInfo},</if>
+            <if test="remark != null">#{remark},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <!-- 删除记录 -->
+    <delete id="deleteRecordById">
+        delete from sys_user_agreement_record where record_id = #{recordId}
+    </delete>
+
+    <!-- 批量删除记录 -->
+    <delete id="deleteRecordByIds">
+        delete from sys_user_agreement_record where record_id in
+        <foreach collection="array" item="recordId" open="(" separator="," close=")">
+            #{recordId}
+        </foreach>
+    </delete>
+
+    <!-- 删除用户的所有确认记录 -->
+    <delete id="deleteRecordsByUserId">
+        delete from sys_user_agreement_record where user_id = #{userId}
+    </delete>
+
+    <!-- 统计用户确认记录数 -->
+    <select id="countByUserId" resultType="int">
+        select count(*) from sys_user_agreement_record
+        where user_id = #{userId}
+        <if test="agreementType != null and agreementType != ''">
+            and agreement_type = #{agreementType}
+        </if>
+    </select>
+
+    <!-- 统计协议确认人数 -->
+    <select id="countUsersByAgreement" resultType="int">
+        select count(distinct user_id) from sys_user_agreement_record
+        where agreement_id = #{agreementId}
+    </select>
+
+    <!-- 查询指定时间段内的确认记录 -->
+    <select id="selectRecordsByDateRange" resultMap="SysUserAgreementRecordResult">
+        <include refid="selectSysUserAgreementRecordVo"/>
+        where confirm_time between #{startTime} and #{endTime}
+        <if test="agreementType != null and agreementType != ''">
+            and agreement_type = #{agreementType}
+        </if>
+        order by confirm_time desc
+    </select>
+
+    <!-- 查询未确认指定协议的用户ID列表 -->
+    <select id="selectUnconfirmedUsers" resultType="Long">
+        select distinct wu.user_id
+        from wechat_user wu
+        where not exists (
+            select 1 from sys_user_agreement_record uar
+            where uar.user_id = wu.user_id
+              and uar.agreement_type = #{agreementType}
+              and uar.agreement_version = #{requiredVersion}
+        )
+    </select>
+
+</mapper>

@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.SysUserAgreementMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.SysUserAgreement" id="SysUserAgreementResult">
+        <result property="agreementId"    column="agreement_id"    />
+        <result property="agreementType"  column="agreement_type"  />
+        <result property="title"          column="title"           />
+        <result property="content"        column="content"         />
+        <result property="version"        column="version"         />
+        <result property="isActive"       column="is_active"       />
+        <result property="effectiveDate"  column="effective_date"  />
+        <result property="createTime"     column="create_time"     />
+        <result property="updateTime"     column="update_time"     />
+        <result property="remark"         column="remark"          />
+    </resultMap>
+
+    <sql id="selectSysUserAgreementVo">
+        select agreement_id, agreement_type, title, content, version, is_active, 
+               effective_date, create_time, update_time, remark
+        from sys_user_agreement
+    </sql>
+
+    <!-- 查询最新生效的协议 -->
+    <select id="selectLatestByType" resultMap="SysUserAgreementResult">
+        <include refid="selectSysUserAgreementVo"/>
+        where agreement_type = #{agreementType}
+          and is_active = 1
+        order by version desc, create_time desc
+        limit 1
+    </select>
+
+    <!-- 根据ID查询协议 -->
+    <select id="selectAgreementById" resultMap="SysUserAgreementResult">
+        <include refid="selectSysUserAgreementVo"/>
+        where agreement_id = #{agreementId}
+    </select>
+
+    <!-- 查询协议列表 -->
+    <select id="selectAgreementList" resultMap="SysUserAgreementResult">
+        <include refid="selectSysUserAgreementVo"/>
+        <where>
+            <if test="agreementType != null and agreementType != ''">
+                and agreement_type = #{agreementType}
+            </if>
+            <if test="isActive != null">
+                and is_active = #{isActive}
+            </if>
+            <if test="version != null and version != ''">
+                and version = #{version}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <!-- 新增协议 -->
+    <insert id="insertAgreement" parameterType="com.ruoyi.web.domain.SysUserAgreement" useGeneratedKeys="true" keyProperty="agreementId">
+        insert into sys_user_agreement
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="agreementType != null and agreementType != ''">agreement_type,</if>
+            <if test="title != null and title != ''">title,</if>
+            <if test="content != null and content != ''">content,</if>
+            <if test="version != null and version != ''">version,</if>
+            <if test="isActive != null">is_active,</if>
+            <if test="effectiveDate != null">effective_date,</if>
+            <if test="remark != null">remark,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="agreementType != null and agreementType != ''">#{agreementType},</if>
+            <if test="title != null and title != ''">#{title},</if>
+            <if test="content != null and content != ''">#{content},</if>
+            <if test="version != null and version != ''">#{version},</if>
+            <if test="isActive != null">#{isActive},</if>
+            <if test="effectiveDate != null">#{effectiveDate},</if>
+            <if test="remark != null">#{remark},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <!-- 修改协议 -->
+    <update id="updateAgreement" parameterType="com.ruoyi.web.domain.SysUserAgreement">
+        update sys_user_agreement
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="version != null and version != ''">version = #{version},</if>
+            <if test="isActive != null">is_active = #{isActive},</if>
+            <if test="effectiveDate != null">effective_date = #{effectiveDate},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = sysdate()
+        </trim>
+        where agreement_id = #{agreementId}
+    </update>
+
+    <!-- 停用旧版本协议 -->
+    <update id="deactivateOldVersions">
+        update sys_user_agreement
+        set is_active = 0,
+            update_time = sysdate()
+        where agreement_type = #{agreementType}
+          and agreement_id != #{excludeId}
+          and is_active = 1
+    </update>
+
+    <!-- 批量停用协议 -->
+    <update id="batchDeactivate">
+        update sys_user_agreement
+        set is_active = 0,
+            update_time = sysdate()
+        where agreement_id in
+        <foreach collection="agreementIds" item="agreementId" open="(" separator="," close=")">
+            #{agreementId}
+        </foreach>
+    </update>
+
+    <!-- 删除协议 -->
+    <delete id="deleteAgreementById">
+        delete from sys_user_agreement where agreement_id = #{agreementId}
+    </delete>
+
+    <!-- 批量删除协议 -->
+    <delete id="deleteAgreementByIds">
+        delete from sys_user_agreement where agreement_id in
+        <foreach collection="array" item="agreementId" open="(" separator="," close=")">
+            #{agreementId}
+        </foreach>
+    </delete>
+
+    <!-- 查询特定版本的协议 -->
+    <select id="selectAgreementByTypeAndVersion" resultMap="SysUserAgreementResult">
+        <include refid="selectSysUserAgreementVo"/>
+        where agreement_type = #{agreementType}
+          and version = #{version}
+        limit 1
+    </select>
+
+    <!-- 统计协议数量 -->
+    <select id="countByType" resultType="int">
+        select count(*) from sys_user_agreement
+        where agreement_type = #{agreementType}
+        <if test="isActive != null">
+            and is_active = #{isActive}
+        </if>
+    </select>
+
+</mapper>
