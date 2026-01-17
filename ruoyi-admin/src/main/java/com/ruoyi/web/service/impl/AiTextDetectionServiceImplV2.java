@@ -1,6 +1,7 @@
 package com.ruoyi.web.service.impl;
 
 import com.ruoyi.web.service.IAiTextDetectionService;
+import com.ruoyi.web.service.paper.IAiModelDetector;
 import com.ruoyi.web.service.text.ITextDetectionAggregator;
 import com.ruoyi.web.service.text.detector.ITextDetector;
 import org.slf4j.Logger;
@@ -30,17 +31,21 @@ public class AiTextDetectionServiceImplV2 implements IAiTextDetectionService {
     @Autowired
     private ITextDetectionAggregator aggregator;
     
+    @Autowired(required = false)
+    private List<IAiModelDetector> aiModelDetectors;
+    
     /**
      * 文本AI检测（多检测器并行分析）
      * 
      * @param text 要检测的文本
+     * @param userId 用户ID
      * @return 检测结果
      * @throws Exception 检测异常
      */
     @Override
-    public Map<String, Object> detectText(String text) throws Exception {
+    public Map<String, Object> detectText(String text, Long userId) throws Exception {
         long startTime = System.currentTimeMillis();
-        log.info("开始文本AI检测，文本长度: {}，可用检测器数量: {}", text.length(), textDetectors.size());
+        log.info("开始文本AI检测，用户ID: {}, 文本长度: {}，可用检测器数量: {}", userId, text.length(), textDetectors.size());
         
         try {
             // 1. 过滤可用的检测器
@@ -100,7 +105,48 @@ public class AiTextDetectionServiceImplV2 implements IAiTextDetectionService {
             // 5. 聚合结果
             Map<String, Object> aggregatedResult = aggregator.aggregate(results, text.length());
             
-            // 6. 添加执行时间
+            // 6. AI模型反向推理检测（增强检测准确性）
+            Map<String, Object> aiModelResult = detectAiModel(text);
+            if (aiModelResult != null && (Boolean) aiModelResult.getOrDefault("detected", false)) {
+                // 将AI模型检测结果添加到聚合结果中
+                aggregatedResult.put("aiModelDetection", aiModelResult);
+                
+                // 如果检测到特定AI模型，调整最终评分和建议
+                double modelScore = ((Number) aiModelResult.get("maxScore")).doubleValue();
+                double confidence = ((Number) aiModelResult.get("confidence")).doubleValue();
+                
+                if (modelScore >= 60 && confidence >= 60) {
+                    // 高置信度检测到AI模型特征，提高风险评分
+                    Double currentScore = (Double) aggregatedResult.get("score");
+                    double adjustedScore = Math.max(currentScore, modelScore * 0.8); // 取当前分数和模型分数的较大值
+                    aggregatedResult.put("score", adjustedScore);
+                    
+                    // 更新判定结果
+                    if (adjustedScore >= 70) {
+                        aggregatedResult.put("result", "AI");
+                        aggregatedResult.put("isAI", true);
+                        aggregatedResult.put("riskLevel", "HIGH");
+                    }
+                    
+                    // 添加AI模型相关的优化建议
+                    @SuppressWarnings("unchecked")
+                    List<String> suggestions = (List<String>) aggregatedResult.getOrDefault("suggestions", new ArrayList<>());
+                    @SuppressWarnings("unchecked")
+                    List<String> modelSuggestions = (List<String>) aiModelResult.get("modelSuggestions");
+                    if (modelSuggestions != null && !modelSuggestions.isEmpty()) {
+                        // 在建议列表开头添加模型特征信息
+                        String detectedModel = (String) aiModelResult.get("detectedModel");
+                        suggestions.add(0, String.format("检测到%s生成特征(置信度: %.0f%%)", detectedModel, confidence));
+                        suggestions.addAll(modelSuggestions);
+                        aggregatedResult.put("suggestions", suggestions);
+                    }
+                    
+                    log.info("AI模型检测: 检测到{}, 评分: {}, 置信度: {}%", 
+                        aiModelResult.get("detectedModel"), modelScore, confidence);
+                }
+            }
+            
+            // 7. 添加执行时间
             long totalTime = System.currentTimeMillis() - startTime;
             aggregatedResult.put("totalResponseTime", totalTime);
             
@@ -147,6 +193,106 @@ public class AiTextDetectionServiceImplV2 implements IAiTextDetectionService {
         suggestions.add("检测失败，请稍后重试");
         suggestions.add("如果问题持续，请联系技术支持");
         result.put("suggestions", suggestions);
+        
+        return result;
+    }
+    
+    /**
+     * AI模型检测 - 反向推理识别可能使用的AI模型
+     * 集成论文检测的AI模型检测器，提高文本检测准确性
+     * 
+     * @param text 待检测文本
+     * @return 检测结果，包含最可能的AI模型及置信度
+     */
+    private Map<String, Object> detectAiModel(String text) {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (aiModelDetectors == null || aiModelDetectors.isEmpty()) {
+            result.put("detected", false);
+            result.put("message", "AI模型检测器未配置");
+            return result;
+        }
+        
+        try {
+            // 对每个AI模型进行检测
+            Map<String, Double> modelScores = new HashMap<>();
+            Map<String, Map<String, String>> modelFeatures = new HashMap<>();
+            
+        for (IAiModelDetector detector : aiModelDetectors) {
+            try {
+                String modelName = detector.getModelName();
+                double score = detector.detectModel(text).doubleValue();
+                Map<String, String> features = detector.getFeatureDetails(text);
+                
+                modelScores.put(modelName, score);
+                modelFeatures.put(modelName, features);
+                } catch (Exception e) {
+                    log.warn("AI模型检测器 {} 执行失败", detector.getClass().getSimpleName(), e);
+                }
+            }
+            
+            if (modelScores.isEmpty()) {
+                result.put("detected", false);
+                result.put("message", "未检测到AI模型特征");
+                return result;
+            }
+            
+            // 找出得分最高的模型
+            Map.Entry<String, Double> maxEntry = modelScores.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .orElse(null);
+            
+            if (maxEntry == null) {
+                result.put("detected", false);
+                return result;
+            }
+            
+            String detectedModel = maxEntry.getKey();
+            double maxScore = maxEntry.getValue();
+            
+            // 计算置信度（基于最高分与次高分的差距）
+            List<Double> sortedScores = modelScores.values().stream()
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList());
+            
+            double confidence = 0;
+            if (sortedScores.size() >= 2) {
+                double gap = sortedScores.get(0) - sortedScores.get(1);
+                confidence = Math.min(gap / sortedScores.get(0), 1.0) * 100;
+            } else if (sortedScores.size() == 1) {
+                confidence = sortedScores.get(0) > 50 ? 80 : 50;
+            }
+            
+            // 组装结果
+            result.put("detected", maxScore >= 40); // 阈值：40分以上认为检测到AI特征
+            result.put("detectedModel", detectedModel);
+            result.put("maxScore", maxScore);
+            result.put("confidence", Math.round(confidence * 100) / 100.0);
+            result.put("allScores", modelScores);
+            result.put("modelFeatures", modelFeatures.get(detectedModel));
+            
+            // 如果置信度较高，获取该模型的优化建议
+            if (maxScore >= 50) {
+                IAiModelDetector detector = aiModelDetectors.stream()
+                    .filter(d -> d.getModelName().equals(detectedModel))
+                    .findFirst()
+                    .orElse(null);
+                
+                if (detector != null) {
+                    List<String> suggestions = detector.generateSuggestions(text, maxScore);
+                    result.put("modelSuggestions", suggestions);
+                }
+            }
+            
+            log.debug("AI模型检测完成 - 检测到: {}, 评分: {}, 置信度: {}%", 
+                detectedModel, maxScore, confidence);
+            
+        } catch (Exception e) {
+            log.error("AI模型检测过程中发生异常", e);
+            result.put("detected", false);
+            result.put("error", true);
+            result.put("errorMessage", e.getMessage());
+        }
         
         return result;
     }

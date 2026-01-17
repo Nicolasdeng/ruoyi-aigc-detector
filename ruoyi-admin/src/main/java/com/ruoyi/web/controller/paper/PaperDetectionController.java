@@ -5,7 +5,7 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
-import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.web.annotation.RequiresAuth;
 import com.ruoyi.web.domain.PaperDetectionRecord;
 import com.ruoyi.web.domain.PaperParagraphDetail;
 import com.ruoyi.web.service.IPaperDetectionService;
@@ -13,9 +13,9 @@ import com.ruoyi.web.service.paper.ISynonymService;
 import com.ruoyi.web.service.paper.ISentenceTransformService;
 import com.ruoyi.web.service.paper.IParagraphOptimizerService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +26,7 @@ import java.util.Map;
  * @author ruoyi
  * @date 2025-12-25
  */
+@RequiresAuth
 @RestController
 @RequestMapping("/paper/detection")
 public class PaperDetectionController extends BaseController
@@ -45,10 +46,9 @@ public class PaperDetectionController extends BaseController
     /**
      * 提交论文检测
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:submit')")
     @Log(title = "论文检测", businessType = BusinessType.INSERT)
     @PostMapping("/submit")
-    public AjaxResult submit(@RequestBody Map<String, String> params)
+    public AjaxResult submit(@RequestBody Map<String, String> params, HttpServletRequest request)
     {
         String title = params.get("title");
         String content = params.get("content");
@@ -66,7 +66,7 @@ public class PaperDetectionController extends BaseController
         }
         
         try {
-            Long userId = SecurityUtils.getUserId();
+            Long userId = (Long) request.getAttribute("userId");
             Long detectionId = paperDetectionService.submitDetection(title, content, userId);
             
             Map<String, Object> result = new HashMap<>();
@@ -82,9 +82,8 @@ public class PaperDetectionController extends BaseController
     /**
      * 查询检测结果
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @GetMapping("/result/{id}")
-    public AjaxResult getResult(@PathVariable("id") Long id)
+    public AjaxResult getResult(@PathVariable("id") Long id, HttpServletRequest request)
     {
         PaperDetectionRecord record = paperDetectionService.getDetectionRecord(id);
         if (record == null) {
@@ -92,7 +91,8 @@ public class PaperDetectionController extends BaseController
         }
         
         // 检查权限：只能查看自己的检测记录
-        if (!record.getUserId().equals(SecurityUtils.getUserId())) {
+        Long userId = (Long) request.getAttribute("userId");
+        if (!record.getUserId().equals(userId)) {
             return error("无权查看此检测记录");
         }
         
@@ -102,9 +102,8 @@ public class PaperDetectionController extends BaseController
     /**
      * 查询段落详情
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @GetMapping("/paragraphs/{detectionId}")
-    public AjaxResult getParagraphs(@PathVariable("detectionId") Long detectionId)
+    public AjaxResult getParagraphs(@PathVariable("detectionId") Long detectionId, HttpServletRequest request)
     {
         // 验证权限
         PaperDetectionRecord record = paperDetectionService.getDetectionRecord(detectionId);
@@ -112,7 +111,8 @@ public class PaperDetectionController extends BaseController
             return error("检测记录不存在");
         }
         
-        if (!record.getUserId().equals(SecurityUtils.getUserId())) {
+        Long userId = (Long) request.getAttribute("userId");
+        if (!record.getUserId().equals(userId)) {
             return error("无权查看此检测记录");
         }
         
@@ -123,9 +123,8 @@ public class PaperDetectionController extends BaseController
     /**
      * 查询高风险段落
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @GetMapping("/highRisk/{detectionId}")
-    public AjaxResult getHighRiskParagraphs(@PathVariable("detectionId") Long detectionId)
+    public AjaxResult getHighRiskParagraphs(@PathVariable("detectionId") Long detectionId, HttpServletRequest request)
     {
         // 验证权限
         PaperDetectionRecord record = paperDetectionService.getDetectionRecord(detectionId);
@@ -133,7 +132,8 @@ public class PaperDetectionController extends BaseController
             return error("检测记录不存在");
         }
         
-        if (!record.getUserId().equals(SecurityUtils.getUserId())) {
+        Long userId = (Long) request.getAttribute("userId");
+        if (!record.getUserId().equals(userId)) {
             return error("无权查看此检测记录");
         }
         
@@ -144,9 +144,8 @@ public class PaperDetectionController extends BaseController
     /**
      * 获取修改建议
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @GetMapping("/suggestions/{detectionId}")
-    public AjaxResult getSuggestions(@PathVariable("detectionId") Long detectionId)
+    public AjaxResult getSuggestions(@PathVariable("detectionId") Long detectionId, HttpServletRequest request)
     {
         // 验证权限
         PaperDetectionRecord record = paperDetectionService.getDetectionRecord(detectionId);
@@ -154,7 +153,8 @@ public class PaperDetectionController extends BaseController
             return error("检测记录不存在");
         }
         
-        if (!record.getUserId().equals(SecurityUtils.getUserId())) {
+        Long userId = (Long) request.getAttribute("userId");
+        if (!record.getUserId().equals(userId)) {
             return error("无权查看此检测记录");
         }
         
@@ -165,11 +165,10 @@ public class PaperDetectionController extends BaseController
     /**
      * 查询检测历史
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:list')")
     @GetMapping("/history")
-    public TableDataInfo getHistory()
+    public TableDataInfo getHistory(HttpServletRequest request)
     {
-        Long userId = SecurityUtils.getUserId();
+        Long userId = (Long) request.getAttribute("userId");
         List<PaperDetectionRecord> list = paperDetectionService.getUserDetectionHistory(userId);
         return getDataTable(list);
     }
@@ -177,14 +176,10 @@ public class PaperDetectionController extends BaseController
     /**
      * 查询检测记录列表
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:list')")
     @GetMapping("/list")
-    public TableDataInfo list(PaperDetectionRecord paperDetectionRecord) {
-        Long currentUserId = SecurityUtils.getUserId();
-
-        if (currentUserId != null && !SecurityUtils.isAdmin(currentUserId)) {
-            paperDetectionRecord.setUserId(currentUserId);
-        }
+    public TableDataInfo list(PaperDetectionRecord paperDetectionRecord, HttpServletRequest request) {
+        Long currentUserId = (Long) request.getAttribute("userId");
+        paperDetectionRecord.setUserId(currentUserId);
 
         startPage();
         List<PaperDetectionRecord> list = paperDetectionService.selectPaperDetectionRecordList(paperDetectionRecord);
@@ -194,15 +189,15 @@ public class PaperDetectionController extends BaseController
     /**
      * 删除检测记录
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:remove')")
     @Log(title = "论文检测", businessType = BusinessType.DELETE)
     @DeleteMapping("/{ids}")
-    public AjaxResult remove(@PathVariable Long[] ids)
+    public AjaxResult remove(@PathVariable Long[] ids, HttpServletRequest request)
     {
         // 验证权限：只能删除自己的记录
+        Long userId = (Long) request.getAttribute("userId");
         for (Long id : ids) {
             PaperDetectionRecord record = paperDetectionService.getDetectionRecord(id);
-            if (record != null && !record.getUserId().equals(SecurityUtils.getUserId())) {
+            if (record != null && !record.getUserId().equals(userId)) {
                 return error("无权删除其他用户的检测记录");
             }
         }
@@ -213,17 +208,16 @@ public class PaperDetectionController extends BaseController
     /**
      * 获取检测详情（包含记录和段落）
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @GetMapping("/detail/{id}")
-    public AjaxResult getDetail(@PathVariable("id") Long id) {
+    public AjaxResult getDetail(@PathVariable("id") Long id, HttpServletRequest request) {
         PaperDetectionRecord record = paperDetectionService.getDetectionRecord(id);
         if (record == null) {
             return error("检测记录不存在");
         }
 
-        // 检查权限：非管理员且不是本人记录则禁止访问
-        Long currentUserId = SecurityUtils.getUserId();
-        if (!record.getUserId().equals(currentUserId) && !SecurityUtils.isAdmin(currentUserId)) {
+        // 检查权限：只能查看自己的记录
+        Long currentUserId = (Long) request.getAttribute("userId");
+        if (!record.getUserId().equals(currentUserId)) {
             return error("无权查看此检测记录");
         }
 
@@ -238,9 +232,8 @@ public class PaperDetectionController extends BaseController
     /**
      * 智能优化论文内容
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:optimize')")
     @PostMapping("/optimize/{detectionId}")
-    public AjaxResult optimize(@PathVariable Long detectionId, @RequestBody Map<String, Object> params)
+    public AjaxResult optimize(@PathVariable Long detectionId, @RequestBody Map<String, Object> params, HttpServletRequest request)
     {
         // 验证权限
         PaperDetectionRecord record = paperDetectionService.getDetectionRecord(detectionId);
@@ -248,7 +241,8 @@ public class PaperDetectionController extends BaseController
             return error("检测记录不存在");
         }
         
-        if (!record.getUserId().equals(SecurityUtils.getUserId())) {
+        Long userId = (Long) request.getAttribute("userId");
+        if (!record.getUserId().equals(userId)) {
             return error("无权优化此检测记录");
         }
         
@@ -277,16 +271,16 @@ public class PaperDetectionController extends BaseController
     /**
      * 获取优化预览
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @GetMapping("/preview/{detectionId}")
-    public AjaxResult preview(@PathVariable Long detectionId)
+    public AjaxResult preview(@PathVariable Long detectionId, HttpServletRequest request)
     {
         PaperDetectionRecord record = paperDetectionService.getDetectionRecord(detectionId);
         if (record == null) {
             return error("检测记录不存在");
         }
         
-        if (!record.getUserId().equals(SecurityUtils.getUserId())) {
+        Long userId = (Long) request.getAttribute("userId");
+        if (!record.getUserId().equals(userId)) {
             return error("无权查看此检测记录");
         }
         
@@ -321,7 +315,6 @@ public class PaperDetectionController extends BaseController
     /**
      * 获取同义词建议
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @PostMapping("/synonyms")
     public AjaxResult getSynonyms(@RequestBody Map<String, String> params)
     {
@@ -337,7 +330,6 @@ public class PaperDetectionController extends BaseController
     /**
      * 获取句式变换建议
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @PostMapping("/transform")
     public AjaxResult transform(@RequestBody Map<String, String> params)
     {
@@ -353,7 +345,6 @@ public class PaperDetectionController extends BaseController
     /**
      * 分析段落
      */
-    @PreAuthorize("@ss.hasPermi('paper:detection:query')")
     @PostMapping("/analyzeParagraph")
     public AjaxResult analyzeParagraph(@RequestBody Map<String, String> params)
     {

@@ -7,6 +7,8 @@ import com.ruoyi.web.domain.PaperParagraphDetail;
 import com.ruoyi.web.mapper.PaperDetectionMapper;
 import com.ruoyi.web.service.IPaperDetectionService;
 import com.ruoyi.web.service.IPaperTextAnalyzer;
+import com.ruoyi.web.service.paper.IAiModelDetector;
+import com.ruoyi.web.service.paper.ModelDetectionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +39,12 @@ public class PaperDetectionServiceImpl implements IPaperDetectionService
     
     @Autowired
     private IPaperTextAnalyzer textAnalyzer;
+    
+    @Autowired
+    private List<IAiModelDetector> aiModelDetectors;
+    
+    // 创建线程池用于并行执行AI模型检测
+    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
     
     @Override
     @Transactional
@@ -61,6 +72,11 @@ public class PaperDetectionServiceImpl implements IPaperDetectionService
             List<PaperParagraphDetail> details = new ArrayList<>();
             int highRiskCount = 0;
             
+            // AI模型检测统计（新版）
+            Map<String, Integer> aiModelCountMap = new HashMap<>();
+            Map<String, List<Double>> aiModelScoresMap = new HashMap<>();
+            List<Map<String, Object>> allModelResults = new ArrayList<>();
+            
             for (int i = 0; i < paragraphs.size(); i++) {
                 String paragraph = paragraphs.get(i);
                 
@@ -69,6 +85,33 @@ public class PaperDetectionServiceImpl implements IPaperDetectionService
                 String riskLevel = textAnalyzer.getRiskLevel(aiRisk);
                 List<String> riskTypes = textAnalyzer.identifyRiskTypes(paragraph, aiRisk);
                 Map<String, Object> suggestions = textAnalyzer.generateSuggestions(paragraph, riskTypes);
+                
+                // ===== 新增：并行执行所有AI模型检测器 =====
+                List<ModelDetectionResult> modelResults = detectWithAllModels(paragraph);
+                
+                // 找出最匹配的AI模型（得分最高的）
+                ModelDetectionResult bestMatch = modelResults.stream()
+                    .max(Comparator.comparingDouble(ModelDetectionResult::getScore))
+                    .orElse(null);
+                
+                if (bestMatch != null && bestMatch.getScore() >= 50.0) {
+                    // 统计各AI模型检测次数
+                    aiModelCountMap.put(bestMatch.getModelName(), 
+                        aiModelCountMap.getOrDefault(bestMatch.getModelName(), 0) + 1);
+                    
+                    // 收集每个模型的得分
+                    aiModelScoresMap.computeIfAbsent(bestMatch.getModelName(), k -> new ArrayList<>())
+                        .add(bestMatch.getScore());
+                    
+                    // 保存详细检测结果
+                    Map<String, Object> resultDetail = new HashMap<>();
+                    resultDetail.put("paragraphIndex", i + 1);
+                    resultDetail.put("detectedModel", bestMatch.getModelName());
+                    resultDetail.put("confidence", bestMatch.getScore());
+                    resultDetail.put("features", bestMatch.getFeatureDetails());
+                    resultDetail.put("suggestions", bestMatch.getSuggestions());
+                    allModelResults.add(resultDetail);
+                }
                 
                 if ("high".equals(riskLevel) || "medium".equals(riskLevel)) {
                     highRiskCount++;
@@ -83,7 +126,17 @@ public class PaperDetectionServiceImpl implements IPaperDetectionService
                 detail.setAiRisk(aiRisk);
                 detail.setRiskLevel(riskLevel);
                 detail.setRiskTypes(JSON.toJSONString(riskTypes));
-                detail.setSuggestions(JSON.toJSONString(suggestions));
+                
+                // 将AI模型检测结果和原有建议合并
+                Map<String, Object> enhancedSuggestions = new HashMap<>(suggestions);
+                if (bestMatch != null && bestMatch.getScore() >= 50.0) {
+                    enhancedSuggestions.put("aiModelDetection", Map.of(
+                        "detectedModel", bestMatch.getModelName(),
+                        "confidence", bestMatch.getScore(),
+                        "modelSuggestions", bestMatch.getSuggestions()
+                    ));
+                }
+                detail.setSuggestions(JSON.toJSONString(enhancedSuggestions));
                 
                 details.add(detail);
             }
@@ -107,7 +160,60 @@ public class PaperDetectionServiceImpl implements IPaperDetectionService
             
             BigDecimal styleScore = textAnalyzer.calculateStyleScore(content);
             
-            // 8. 更新检测记录
+            // 8. 生成增强版AI模型检测摘要
+            Map<String, Object> aiModelSummary = new HashMap<>();
+            if (!aiModelCountMap.isEmpty()) {
+                // 找出检测次数最多的AI模型
+                String mostDetectedModel = aiModelCountMap.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(Map.Entry::getKey)
+                    .orElse(null);
+                
+                // 计算该模型的平均置信度
+                double avgConfidence = 0.0;
+                if (mostDetectedModel != null && aiModelScoresMap.containsKey(mostDetectedModel)) {
+                    List<Double> scores = aiModelScoresMap.get(mostDetectedModel);
+                    avgConfidence = scores.stream()
+                        .mapToDouble(Double::doubleValue)
+                        .average()
+                        .orElse(0.0);
+                }
+                
+                // 计算所有模型的分布百分比
+                int totalDetections = aiModelCountMap.values().stream()
+                    .mapToInt(Integer::intValue)
+                    .sum();
+                
+                Map<String, Object> modelDistribution = new HashMap<>();
+                for (Map.Entry<String, Integer> entry : aiModelCountMap.entrySet()) {
+                    String modelName = entry.getKey();
+                    int count = entry.getValue();
+                    double percentage = (count * 100.0) / paragraphs.size();
+                    
+                    double modelAvgConfidence = 0.0;
+                    if (aiModelScoresMap.containsKey(modelName)) {
+                        modelAvgConfidence = aiModelScoresMap.get(modelName).stream()
+                            .mapToDouble(Double::doubleValue)
+                            .average()
+                            .orElse(0.0);
+                    }
+                    
+                    modelDistribution.put(modelName, Map.of(
+                        "count", count,
+                        "percentage", Math.round(percentage * 10) / 10.0,
+                        "avgConfidence", Math.round(modelAvgConfidence * 10) / 10.0
+                    ));
+                }
+                
+                aiModelSummary.put("mostDetectedModel", mostDetectedModel);
+                aiModelSummary.put("detectionCount", aiModelCountMap.get(mostDetectedModel));
+                aiModelSummary.put("totalParagraphs", paragraphs.size());
+                aiModelSummary.put("avgConfidence", Math.round(avgConfidence * 10) / 10.0);
+                aiModelSummary.put("modelDistribution", modelDistribution);
+                aiModelSummary.put("detectionDetails", allModelResults);
+            }
+            
+            // 9. 更新检测记录
             record.setAiScore(avgAiScore);
             record.setAiRiskLevel(aiRiskLevel);
             record.setDuplicateScore(duplicateScore);
@@ -117,10 +223,45 @@ public class PaperDetectionServiceImpl implements IPaperDetectionService
             record.setStatus("completed");
             record.setDetectDuration((int)((System.currentTimeMillis() - startTime) / 1000));
             
+            // 将增强版AI模型检测摘要保存到remark字段
+            if (!aiModelSummary.isEmpty()) {
+                String modelName = (String) aiModelSummary.get("mostDetectedModel");
+                int detectionCount = (Integer) aiModelSummary.get("detectionCount");
+                int totalParagraphs = (Integer) aiModelSummary.get("totalParagraphs");
+                double avgConfidence = (Double) aiModelSummary.get("avgConfidence");
+                
+                String aiModelInfo = String.format("AI模型检测: %s (检出%d/%d段, 平均置信度%.1f%%)",
+                    modelName, detectionCount, totalParagraphs, avgConfidence);
+                
+                // 如果有其他模型也被检测到，添加到备注中
+                @SuppressWarnings("unchecked")
+                Map<String, Object> distribution = (Map<String, Object>) aiModelSummary.get("modelDistribution");
+                if (distribution.size() > 1) {
+                    List<String> otherModels = distribution.entrySet().stream()
+                        .filter(e -> !e.getKey().equals(modelName))
+                        .map(e -> {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> info = (Map<String, Object>) e.getValue();
+                            return String.format("%s(%.1f%%)", e.getKey(), info.get("percentage"));
+                        })
+                        .collect(Collectors.toList());
+                    
+                    if (!otherModels.isEmpty()) {
+                        aiModelInfo += " | 其他: " + String.join(", ", otherModels);
+                    }
+                }
+                
+                record.setRemark(aiModelInfo);
+            }
+            
             paperDetectionMapper.updatePaperDetectionRecord(record);
             
-            log.info("论文检测完成，ID: {}, 用户: {}, AI风险: {}, 耗时: {}秒", 
-                detectionId, userId, avgAiScore, record.getDetectDuration());
+            log.info("论文检测完成，ID: {}, 用户: {}, AI风险: {}, AI模型: {} (置信度: {}%), 耗时: {}秒", 
+                detectionId, userId, avgAiScore, 
+                aiModelSummary.getOrDefault("mostDetectedModel", "未检测到"),
+                aiModelSummary.containsKey("avgConfidence") ? 
+                    String.format("%.1f", (Double)aiModelSummary.get("avgConfidence")) : "N/A",
+                record.getDetectDuration());
             
             return detectionId;
             
@@ -204,6 +345,62 @@ public class PaperDetectionServiceImpl implements IPaperDetectionService
     public int deletePaperDetectionRecordByIds(Long[] ids)
     {
         return paperDetectionMapper.deletePaperDetectionRecordByIds(ids);
+    }
+    
+    /**
+     * 使用所有AI模型检测器并行检测文本
+     * 
+     * @param text 待检测文本
+     * @return 所有模型的检测结果列表
+     */
+    private List<ModelDetectionResult> detectWithAllModels(String text)
+    {
+        if (aiModelDetectors == null || aiModelDetectors.isEmpty()) {
+            log.warn("未找到任何AI模型检测器");
+            return Collections.emptyList();
+        }
+        
+        try {
+            // 并行执行所有检测器
+            List<CompletableFuture<ModelDetectionResult>> futures = aiModelDetectors.stream()
+                .map(detector -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        // 调用检测器的 detectModel 方法获取得分
+                        BigDecimal score = detector.detectModel(text);
+                        
+                        // 获取模型名称
+                        String modelName = detector.getModelName();
+                        
+                        // 获取特征详情
+                        Map<String, String> featureDetails = detector.getFeatureDetails(text);
+                        
+                        // 生成优化建议
+                        List<String> suggestions = detector.generateSuggestions(text, score.doubleValue());
+                        
+                        // 创建并返回检测结果对象
+                        return new ModelDetectionResult(
+                            modelName,
+                            score.doubleValue(),
+                            featureDetails,
+                            suggestions
+                        );
+                    } catch (Exception e) {
+                        log.error("AI模型检测器执行失败: {}", detector.getClass().getSimpleName(), e);
+                        return null;
+                    }
+                }, executorService))
+                .collect(Collectors.toList());
+            
+            // 等待所有检测完成并收集结果
+            return futures.stream()
+                .map(CompletableFuture::join)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+                
+        } catch (Exception e) {
+            log.error("并行AI模型检测失败", e);
+            return Collections.emptyList();
+        }
     }
     
     /**

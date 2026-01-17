@@ -2,7 +2,10 @@ package com.ruoyi.web.controller.riddle;
 
 import java.util.List;
 import java.util.Map;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.ruoyi.common.annotation.Anonymous;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +25,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.web.domain.riddle.RiddleQuestion;
 import com.ruoyi.web.domain.riddle.RiddleHistory;
 import com.ruoyi.web.service.riddle.IRiddleService;
-import com.ruoyi.common.utils.SecurityUtils;
+
 
 /**
  * 脑筋急转弯Controller
@@ -62,10 +65,12 @@ public class RiddleController extends BaseController
     /**
      * 提交答案
      */
+    @Anonymous
     @PostMapping("/submit")
-    public AjaxResult submitAnswer(@RequestBody Map<String, Object> params)
+    public AjaxResult submitAnswer(@RequestBody Map<String, Object> params, HttpServletRequest request)
     {
-        Long userId = SecurityUtils.getUserId();
+        // 从request获取userId（已登录用户），未登录时为null
+        Long userId = (Long) request.getAttribute("userId");
         Long questionId = Long.valueOf(params.get("questionId").toString());
         String userAnswer = params.get("userAnswer").toString();
         Integer timeSpent = params.get("timeSpent") != null ? 
@@ -78,10 +83,17 @@ public class RiddleController extends BaseController
     /**
      * 查询答题历史
      */
+    @Anonymous
     @GetMapping("/history")
-    public AjaxResult getUserHistory()
+    public AjaxResult getUserHistory(HttpServletRequest request)
     {
-        Long userId = SecurityUtils.getUserId();
+        // 从request获取userId（已登录用户），未登录时为null
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            // 游客模式：返回空列表
+            return success(new java.util.ArrayList<>());
+        }
+        
         List<RiddleHistory> list = riddleService.getUserHistory(userId);
         return success(list);
     }
@@ -89,10 +101,21 @@ public class RiddleController extends BaseController
     /**
      * 获取用户统计
      */
+    @Anonymous
     @GetMapping("/statistics")
-    public AjaxResult getUserStatistics()
+    public AjaxResult getUserStatistics(HttpServletRequest request)
     {
-        Long userId = SecurityUtils.getUserId();
+        // 从request获取userId（已登录用户），未登录时为null
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            // 游客模式：返回默认统计数据
+            Map<String, Object> defaultStats = new java.util.HashMap<>();
+            defaultStats.put("totalCount", 0);
+            defaultStats.put("correctCount", 0);
+            defaultStats.put("accuracy", 0.0);
+            return success(defaultStats);
+        }
+        
         Map<String, Object> statistics = riddleService.getUserStatistics(userId);
         return success(statistics);
     }

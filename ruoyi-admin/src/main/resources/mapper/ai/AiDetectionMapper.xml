@@ -124,4 +124,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select count(*) from ai_detection_record 
         where date_format(create_time,'%Y-%m-%d') = date_format(now(),'%Y-%m-%d')
     </select>
+
+    <select id="selectTotalCountByUserId" resultType="int">
+        select count(*) from ai_detection_record
+        where user_id = #{userId}
+    </select>
+
+    <select id="selectCountByResultAndUserId" resultType="int">
+        select count(*) from ai_detection_record
+        where result = #{result}
+        and user_id = #{userId}
+    </select>
+
+    <select id="selectTodayCountByUserId" resultType="int">
+        select count(*) from ai_detection_record 
+        where date_format(create_time,'%Y-%m-%d') = date_format(now(),'%Y-%m-%d')
+        and user_id = #{userId}
+    </select>
 </mapper>

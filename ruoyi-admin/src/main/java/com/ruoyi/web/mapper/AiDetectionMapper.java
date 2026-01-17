@@ -81,4 +81,29 @@ public interface AiDetectionMapper {
      * @return 今日数量
      */
     int selectTodayCount();
+
+    /**
+     * 根据用户ID查询总记录数
+     *
+     * @param userId 用户ID
+     * @return 总记录数
+     */
+    int selectTotalCountByUserId(@Param("userId") Long userId);
+
+    /**
+     * 根据用户ID和检测结果查询记录数
+     *
+     * @param result 检测结果
+     * @param userId 用户ID
+     * @return 记录数
+     */
+    int selectCountByResultAndUserId(@Param("result") String result, @Param("userId") Long userId);
+
+    /**
+     * 根据用户ID查询今日记录数
+     *
+     * @param userId 用户ID
+     * @return 今日记录数
+     */
+    int selectTodayCountByUserId(@Param("userId") Long userId);
 }

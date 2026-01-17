@@ -22,7 +22,7 @@ public interface ITextDetector {
      *         - responseTime: 响应时间(毫秒)
      *         - details: 详细信息(可选)
      */
-    Map<String, Object> detect(String text);
+    Map<String, Object> detect(String text) throws Exception;
     
     /**
      * 获取检测器名称

@@ -218,6 +218,12 @@
                 <version>${ruoyi.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>org.openpnp</groupId>
+                <artifactId>opencv</artifactId>
+                <version>4.7.0-0</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -236,7 +242,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>

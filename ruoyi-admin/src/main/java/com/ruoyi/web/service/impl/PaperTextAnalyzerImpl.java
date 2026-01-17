@@ -1,6 +1,8 @@
 package com.ruoyi.web.service.impl;
 
 import com.ruoyi.web.service.IPaperTextAnalyzer;
+import com.ruoyi.web.service.paper.IAiModelDetector;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -12,6 +14,7 @@ import java.util.stream.Collectors;
 
 /**
  * 论文文本分析器实现
+ * 集成AI模型反向推理检测功能
  * 
  * @author ruoyi
  * @date 2025-12-25
@@ -19,6 +22,9 @@ import java.util.stream.Collectors;
 @Service
 public class PaperTextAnalyzerImpl implements IPaperTextAnalyzer
 {
+    @Autowired(required = false)
+    private List<IAiModelDetector> aiModelDetectors;
+    
     // AI常用的模板化表达
     private static final List<String> AI_TEMPLATES = Arrays.asList(
         "综上所述", "总而言之", "通过以上分析", "由此可见", "不难看出",
@@ -44,19 +50,120 @@ public class PaperTextAnalyzerImpl implements IPaperTextAnalyzer
         
         double totalScore = 0;
         
-        // 1. 句式规范性检测 (30分)
-        totalScore += checkSentenceStructure(paragraph);
+        // 1. 基础AI特征检测 (40分)
+        // 1.1 句式规范性检测 (15分)
+        totalScore += checkSentenceStructure(paragraph) * 0.5;
         
-        // 2. 词汇多样性分析 (25分)
-        totalScore += checkVocabularyDiversity(paragraph);
+        // 1.2 词汇多样性分析 (10分)
+        totalScore += checkVocabularyDiversity(paragraph) * 0.4;
         
-        // 3. 逻辑连贯性检测 (25分)
-        totalScore += checkLogicalCoherence(paragraph);
+        // 1.3 逻辑连贯性检测 (10分)
+        totalScore += checkLogicalCoherence(paragraph) * 0.4;
         
-        // 4. 模板化表达检测 (20分)
-        totalScore += checkTemplateExpressions(paragraph);
+        // 1.4 模板化表达检测 (5分)
+        totalScore += checkTemplateExpressions(paragraph) * 0.25;
         
-        return BigDecimal.valueOf(totalScore).setScale(2, RoundingMode.HALF_UP);
+        // 2. AI模型特征反向推理 (60分)
+        // 对文本进行AI模型检测，取最高分作为模型特征得分
+        Map<String, Object> aiModelResult = detectAiModel(paragraph);
+        if (aiModelResult != null && aiModelResult.containsKey("maxScore")) {
+            double aiModelScore = ((Number) aiModelResult.get("maxScore")).doubleValue();
+            // AI模型检测分数范围0-100，映射到0-60分
+            totalScore += aiModelScore * 0.6;
+        }
+        
+        return BigDecimal.valueOf(Math.min(totalScore, 100)).setScale(2, RoundingMode.HALF_UP);
+    }
+    
+    /**
+     * AI模型检测 - 反向推理识别可能使用的AI模型
+     * 
+     * @param text 待检测文本
+     * @return 检测结果，包含最可能的AI模型及置信度
+     */
+    public Map<String, Object> detectAiModel(String text)
+    {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (aiModelDetectors == null || aiModelDetectors.isEmpty()) {
+            result.put("detected", false);
+            result.put("message", "AI模型检测器未配置");
+            return result;
+        }
+        
+        // 对每个AI模型进行检测
+        Map<String, Double> modelScores = new HashMap<>();
+        Map<String, Map<String, Object>> modelFeatures = new HashMap<>();
+        
+        for (IAiModelDetector detector : aiModelDetectors) {
+            try {
+                String modelName = detector.getModelName();
+                double score = detector.detectModel(text).doubleValue();
+                Map<String, String> features = detector.getFeatureDetails(text);
+                
+                modelScores.put(modelName, score);
+                // 转换 Map<String, String> 为 Map<String, Object>
+                Map<String, Object> featureObjects = new HashMap<>(features);
+                modelFeatures.put(modelName, featureObjects);
+            } catch (Exception e) {
+                // 忽略单个检测器的错误
+            }
+        }
+        
+        if (modelScores.isEmpty()) {
+            result.put("detected", false);
+            result.put("message", "未检测到AI模型特征");
+            return result;
+        }
+        
+        // 找出得分最高的模型
+        Map.Entry<String, Double> maxEntry = modelScores.entrySet().stream()
+            .max(Map.Entry.comparingByValue())
+            .orElse(null);
+        
+        if (maxEntry == null) {
+            result.put("detected", false);
+            return result;
+        }
+        
+        String detectedModel = maxEntry.getKey();
+        double maxScore = maxEntry.getValue();
+        
+        // 计算置信度（基于最高分与次高分的差距）
+        List<Double> sortedScores = modelScores.values().stream()
+            .sorted(Comparator.reverseOrder())
+            .collect(Collectors.toList());
+        
+        double confidence = 0;
+        if (sortedScores.size() >= 2) {
+            double gap = sortedScores.get(0) - sortedScores.get(1);
+            confidence = Math.min(gap / sortedScores.get(0), 1.0) * 100;
+        } else if (sortedScores.size() == 1) {
+            confidence = sortedScores.get(0) > 50 ? 80 : 50;
+        }
+        
+        // 组装结果
+        result.put("detected", maxScore >= 40); // 阈值：40分以上认为检测到AI特征
+        result.put("detectedModel", detectedModel);
+        result.put("maxScore", maxScore);
+        result.put("confidence", Math.round(confidence * 100) / 100.0);
+        result.put("allScores", modelScores);
+        result.put("modelFeatures", modelFeatures.get(detectedModel));
+        
+        // 如果置信度较高，获取该模型的优化建议
+        if (maxScore >= 50) {
+            IAiModelDetector detector = aiModelDetectors.stream()
+                .filter(d -> d.getModelName().equals(detectedModel))
+                .findFirst()
+                .orElse(null);
+            
+            if (detector != null) {
+                List<String> suggestions = detector.generateSuggestions(text, maxScore);
+                result.put("modelSuggestions", suggestions);
+            }
+        }
+        
+        return result;
     }
     
     /**
@@ -224,6 +331,7 @@ public class PaperTextAnalyzerImpl implements IPaperTextAnalyzer
     {
         List<String> types = new ArrayList<>();
         
+        // 1. 基础特征检测
         double sentenceScore = checkSentenceStructure(paragraph);
         double vocabularyScore = checkVocabularyDiversity(paragraph);
         double logicScore = checkLogicalCoherence(paragraph);
@@ -242,7 +350,31 @@ public class PaperTextAnalyzerImpl implements IPaperTextAnalyzer
             types.add("模板化表达");
         }
         
-        // 如果分数高但没有识别到具体类型，添加通用类型
+        // 2. AI模型特征识别
+        Map<String, Object> aiModelResult = detectAiModel(paragraph);
+        if (aiModelResult != null && (Boolean) aiModelResult.getOrDefault("detected", false)) {
+            String detectedModel = (String) aiModelResult.get("detectedModel");
+            double modelScore = ((Number) aiModelResult.get("maxScore")).doubleValue();
+            double confidence = ((Number) aiModelResult.get("confidence")).doubleValue();
+            
+            // 添加AI模型类型
+            if (modelScore >= 60 && confidence >= 60) {
+                types.add("检测到" + detectedModel + "特征(置信度:" + Math.round(confidence) + "%)");
+            } else if (modelScore >= 50) {
+                types.add("疑似" + detectedModel + "生成");
+            }
+            
+            // 获取具体的特征描述
+            @SuppressWarnings("unchecked")
+            Map<String, Object> features = (Map<String, Object>) aiModelResult.get("modelFeatures");
+            if (features != null && features.containsKey("topFeatures")) {
+                @SuppressWarnings("unchecked")
+                List<String> topFeatures = (List<String>) features.get("topFeatures");
+                types.addAll(topFeatures);
+            }
+        }
+        
+        // 3. 如果分数高但没有识别到具体类型，添加通用类型
         if (types.isEmpty() && score.doubleValue() >= 40) {
             types.add("疑似AI生成");
         }
@@ -256,51 +388,86 @@ public class PaperTextAnalyzerImpl implements IPaperTextAnalyzer
         Map<String, Object> suggestions = new HashMap<>();
         List<String> allSuggestions = new ArrayList<>();
         
+        // 1. 处理基础风险类型的建议
         for (String type : riskTypes) {
             List<String> typeSuggestions = new ArrayList<>();
             
-            switch (type) {
-                case "句式过于规范":
-                    typeSuggestions.add("调整句子长度，有长有短更自然");
-                    typeSuggestions.add("偶尔使用一些口语化表达");
-                    typeSuggestions.add("可以适当打断完整的句式结构");
-                    typeSuggestions.add("尝试使用倒装句或疑问句增加变化");
-                    break;
-                    
-                case "词汇重复度高":
-                    typeSuggestions.add("使用同义词替换高频词汇");
-                    typeSuggestions.add("增加专业术语的个人理解和注释");
-                    typeSuggestions.add("加入具体的实例或案例描述");
-                    typeSuggestions.add("用更多样化的表达方式");
-                    break;
-                    
-                case "逻辑连接词过多":
-                    typeSuggestions.add("不必每段都使用'首先、其次、最后'");
-                    typeSuggestions.add("可以先说结论，再解释原因");
-                    typeSuggestions.add("适当加入个人的思考过程");
-                    typeSuggestions.add("减少过度使用逻辑连接词");
-                    break;
-                    
-                case "模板化表达":
-                    typeSuggestions.add("避免使用'综上所述'等常见套话");
-                    typeSuggestions.add("用具体例子替代空泛的总结");
-                    typeSuggestions.add("加入自己的观察和体会");
-                    typeSuggestions.add("使用更具体、更个性化的表达");
-                    break;
-                    
-                case "疑似AI生成":
-                    typeSuggestions.add("增加个人经历和真实案例");
-                    typeSuggestions.add("加入主观感受和思考过程");
-                    typeSuggestions.add("使用更口语化、不那么完美的表达");
-                    typeSuggestions.add("展现独特的观点和见解");
-                    break;
+            // 检测是否为AI模型特征类型
+            if (type.startsWith("检测到") || type.startsWith("疑似")) {
+                // AI模型特征，从detectAiModel结果中获取针对性建议
+                Map<String, Object> aiModelResult = detectAiModel(paragraph);
+                if (aiModelResult != null && aiModelResult.containsKey("modelSuggestions")) {
+                    @SuppressWarnings("unchecked")
+                    List<String> modelSuggestions = (List<String>) aiModelResult.get("modelSuggestions");
+                    typeSuggestions.addAll(modelSuggestions);
+                }
+            } else {
+                // 基础类型建议
+                switch (type) {
+                    case "句式过于规范":
+                        typeSuggestions.add("调整句子长度，有长有短更自然");
+                        typeSuggestions.add("偶尔使用一些口语化表达");
+                        typeSuggestions.add("可以适当打断完整的句式结构");
+                        typeSuggestions.add("尝试使用倒装句或疑问句增加变化");
+                        break;
+                        
+                    case "词汇重复度高":
+                        typeSuggestions.add("使用同义词替换高频词汇");
+                        typeSuggestions.add("增加专业术语的个人理解和注释");
+                        typeSuggestions.add("加入具体的实例或案例描述");
+                        typeSuggestions.add("用更多样化的表达方式");
+                        break;
+                        
+                    case "逻辑连接词过多":
+                        typeSuggestions.add("不必每段都使用'首先、其次、最后'");
+                        typeSuggestions.add("可以先说结论，再解释原因");
+                        typeSuggestions.add("适当加入个人的思考过程");
+                        typeSuggestions.add("减少过度使用逻辑连接词");
+                        break;
+                        
+                    case "模板化表达":
+                        typeSuggestions.add("避免使用'综上所述'等常见套话");
+                        typeSuggestions.add("用具体例子替代空泛的总结");
+                        typeSuggestions.add("加入自己的观察和体会");
+                        typeSuggestions.add("使用更具体、更个性化的表达");
+                        break;
+                        
+                    case "疑似AI生成":
+                        typeSuggestions.add("增加个人经历和真实案例");
+                        typeSuggestions.add("加入主观感受和思考过程");
+                        typeSuggestions.add("使用更口语化、不那么完美的表达");
+                        typeSuggestions.add("展现独特的观点和见解");
+                        break;
+                        
+                    default:
+                        // 对于其他特征类型（如具体AI模型的子特征）
+                        if (!typeSuggestions.isEmpty()) {
+                            break;
+                        }
+                        typeSuggestions.add("该特征表明文本可能由AI生成");
+                        typeSuggestions.add("建议对相关内容进行人工润色");
+                        break;
+                }
             }
             
-            suggestions.put(type, typeSuggestions);
-            allSuggestions.addAll(typeSuggestions);
+            if (!typeSuggestions.isEmpty()) {
+                suggestions.put(type, typeSuggestions);
+                allSuggestions.addAll(typeSuggestions);
+            }
         }
         
-        suggestions.put("all", allSuggestions);
+        // 2. 添加AI模型检测摘要信息
+        Map<String, Object> aiModelResult = detectAiModel(paragraph);
+        if (aiModelResult != null && (Boolean) aiModelResult.getOrDefault("detected", false)) {
+            suggestions.put("aiModelDetection", aiModelResult);
+        }
+        
+        // 3. 去重并整理最终建议
+        List<String> uniqueSuggestions = allSuggestions.stream()
+            .distinct()
+            .collect(Collectors.toList());
+        
+        suggestions.put("all", uniqueSuggestions);
         suggestions.put("riskTypes", riskTypes);
         
         return suggestions;

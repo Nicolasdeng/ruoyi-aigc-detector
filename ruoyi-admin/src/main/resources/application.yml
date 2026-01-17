@@ -164,3 +164,18 @@ ai:
     openai:
       # API Key (请在 https://platform.openai.com/account/api-keys 获取)
       key:
+
+# 微信小程序配置
+wechat:
+  miniapp:
+    # 小程序AppID（请在微信公众平台获取 https://mp.weixin.qq.com）
+    appid: wx0f425aa35ae69981
+    # 小程序AppSecret（请在微信公众平台获取）
+    secret: 16e980c2cae1a898719b518e7a3f16dd
+
+# JWT配置
+jwt:
+  # JWT密钥（用于生成和验证Token）
+  secret: your_jwt_secret_key_here_at_least_32_characters_long
+  # Token过期时间（秒），默认7天
+  expiration: 604800

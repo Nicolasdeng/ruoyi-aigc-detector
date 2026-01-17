@@ -1,22 +1,24 @@
 package com.ruoyi.web.controller.ai;
 
-import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.web.annotation.RequiresAuth;
 import com.ruoyi.web.domain.AiDetectionRecord;
 import com.ruoyi.web.service.IAiImageDetectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
+
 /**
  * AI图片检测Controller
  * 
  * @author ruoyi
  */
-@Anonymous
+@RequiresAuth
 @RestController
 @RequestMapping("/ai/detection/image")
 public class AiImageDetectionController extends BaseController {
@@ -27,13 +29,16 @@ public class AiImageDetectionController extends BaseController {
     /**
      * 上传图片并检测
      */
-    @Anonymous
+    @RequiresAuth
     @Log(title = "AI图片检测", businessType = BusinessType.OTHER)
     @PostMapping("/upload")
     public AjaxResult uploadAndDetect(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "userId", required = false) String userIdStr) {
+            HttpServletRequest request) {
         try {
+            // 从请求中获取userId
+            Long userId = (Long) request.getAttribute("userId");
+            
             // 验证文件
             if (file == null || file.isEmpty()) {
                 return AjaxResult.error("请选择要上传的图片");
@@ -51,20 +56,7 @@ public class AiImageDetectionController extends BaseController {
             }
             
             // 执行检测
-            AiDetectionRecord record = aiImageDetectionService.detectImage(file);
-            
-            // 设置用户ID - 安全转换
-            if (userIdStr != null && !userIdStr.trim().isEmpty() 
-                && !"null".equalsIgnoreCase(userIdStr) 
-                && !"[object Null]".equalsIgnoreCase(userIdStr)
-                && !"undefined".equalsIgnoreCase(userIdStr)) {
-                try {
-                    Long userId = Long.parseLong(userIdStr.trim());
-                    record.setUserId(userId);
-                } catch (NumberFormatException e) {
-                    logger.warn("无效的userId格式: {}", userIdStr);
-                }
-            }
+            AiDetectionRecord record = aiImageDetectionService.detectImage(file, userId);
             
             return AjaxResult.success("检测完成", record);
         } catch (Exception e) {
@@ -76,11 +68,14 @@ public class AiImageDetectionController extends BaseController {
     /**
      * 通过URL检测图片
      */
-    @Anonymous
+    @RequiresAuth
     @Log(title = "AI图片URL检测", businessType = BusinessType.OTHER)
     @PostMapping("/url")
-    public AjaxResult detectImageByUrl(@RequestParam("url") String imageUrl) {
+    public AjaxResult detectImageByUrl(@RequestParam("url") String imageUrl, HttpServletRequest request) {
         try {
+            // 从请求中获取userId
+            Long userId = (Long) request.getAttribute("userId");
+            
             if (imageUrl == null || imageUrl.trim().isEmpty()) {
                 return AjaxResult.error("图片URL不能为空");
             }
@@ -90,7 +85,7 @@ public class AiImageDetectionController extends BaseController {
                 return AjaxResult.error("请提供有效的图片URL（需以http://或https://开头）");
             }
             
-            AiDetectionRecord record = aiImageDetectionService.detectImageByUrl(imageUrl);
+            AiDetectionRecord record = aiImageDetectionService.detectImageByUrl(imageUrl, userId);
             
             return AjaxResult.success("检测完成", record);
         } catch (Exception e) {

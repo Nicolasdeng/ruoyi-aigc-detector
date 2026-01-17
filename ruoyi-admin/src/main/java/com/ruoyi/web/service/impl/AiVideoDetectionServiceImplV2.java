@@ -9,6 +9,11 @@ import com.ruoyi.web.domain.VideoDetectionDetail;
 import com.ruoyi.web.domain.VideoDetectionDetail.*;
 import com.ruoyi.web.mapper.AiDetectionMapper;
 import com.ruoyi.web.service.IAiVideoDetectionService;
+import com.ruoyi.web.service.video.IVideoAiModelDetector;
+import com.ruoyi.web.service.video.IVideoDetectionAggregator;
+import com.ruoyi.web.service.video.VideoModelDetectionResult;
+import com.ruoyi.web.service.video.detector.IVideoFrameDetector;
+import com.ruoyi.web.service.video.util.VideoFeatureAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +21,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -41,6 +47,18 @@ public class AiVideoDetectionServiceImplV2 implements IAiVideoDetectionService {
 
     @Autowired
     private AiDetectionMapper aiDetectionMapper;
+    
+    @Autowired
+    private List<IVideoFrameDetector> videoDetectors;
+    
+    @Autowired
+    private List<IVideoAiModelDetector> aiModelDetectors;
+    
+    @Autowired
+    private IVideoDetectionAggregator videoAggregator;
+    
+    @Autowired
+    private VideoFeatureAnalyzer videoFeatureAnalyzer;
 
     @Value("${ai.detection.huggingface.token:}")
     private String huggingfaceToken;
@@ -58,7 +76,7 @@ public class AiVideoDetectionServiceImplV2 implements IAiVideoDetectionService {
      * 检测上传的视频
      */
     @Override
-    public AiDetectionRecord detectVideo(MultipartFile file) throws Exception {
+    public AiDetectionRecord detectVideo(MultipartFile file, Long userId) throws Exception {
         // 上传文件
         String fileName = FileUploadUtils.upload(RuoYiConfig.getUploadPath(), file);
         String fileUrl = fileName;
@@ -66,6 +84,7 @@ public class AiVideoDetectionServiceImplV2 implements IAiVideoDetectionService {
         
         // 创建检测记录
         AiDetectionRecord record = new AiDetectionRecord();
+        record.setUserId(userId);
         record.setFileUrl(fileUrl);
         record.setFileType("video");
         record.setFileSize(file.getSize());
@@ -89,8 +108,8 @@ public class AiVideoDetectionServiceImplV2 implements IAiVideoDetectionService {
             
             aiDetectionMapper.updateRecord(record);
             
-            log.info("视频检测完成: {} - 结果: {} - 置信度: {} - 耗时: {}ms", 
-                    fileUrl, record.getDetectionResult(), record.getConfidenceScore(), processingTime);
+            log.info("视频检测完成，用户ID: {} - 文件: {} - 结果: {} - 置信度: {} - 耗时: {}ms", 
+                    userId, fileUrl, record.getDetectionResult(), record.getConfidenceScore(), processingTime);
             
         } catch (Exception e) {
             log.error("视频检测失败: " + fileUrl, e);
@@ -107,9 +126,10 @@ public class AiVideoDetectionServiceImplV2 implements IAiVideoDetectionService {
      * 通过URL检测视频
      */
     @Override
-    public AiDetectionRecord detectVideoByUrl(String videoUrl) throws Exception {
+    public AiDetectionRecord detectVideoByUrl(String videoUrl, Long userId) throws Exception {
         // 创建检测记录
         AiDetectionRecord record = new AiDetectionRecord();
+        record.setUserId(userId);
         record.setFileUrl(videoUrl);
         record.setFileType("video");
         record.setStatus("PROCESSING");
@@ -132,8 +152,8 @@ public class AiVideoDetectionServiceImplV2 implements IAiVideoDetectionService {
             
             aiDetectionMapper.updateRecord(record);
             
-            log.info("视频URL检测完成: {} - 结果: {} - 置信度: {} - 耗时: {}ms", 
-                    videoUrl, record.getDetectionResult(), record.getConfidenceScore(), processingTime);
+            log.info("视频URL检测完成，用户ID: {} - URL: {} - 结果: {} - 置信度: {} - 耗时: {}ms", 
+                    userId, videoUrl, record.getDetectionResult(), record.getConfidenceScore(), processingTime);
             
         } catch (Exception e) {
             log.error("视频URL检测失败: " + videoUrl, e);
@@ -150,36 +170,31 @@ public class AiVideoDetectionServiceImplV2 implements IAiVideoDetectionService {
      * 执行增强的多API检测
      */
     private VideoDetectionDetail performEnhancedDetection(String filePath, String fileName) throws Exception {
-        VideoDetectionDetail detail = new VideoDetectionDetail();
-        
         // 1. 获取视频基本信息
         VideoInfo videoInfo = extractVideoInfo(filePath, fileName);
-        detail.setVideoInfo(videoInfo);
         
-        // 2. 并行执行多个检测API
+        // 2. 并行执行所有检测器
         List<Callable<ApiResult>> tasks = new ArrayList<>();
         
-        // 任务1: Hugging Face API检测（如果启用）
+        // 添加所有自动注入的传统检测器
+        for (IVideoFrameDetector detector : videoDetectors) {
+            tasks.add(() -> detector.detect(filePath));
+        }
+        
+        // 添加所有AI模型检测器
+        for (IVideoAiModelDetector aiDetector : aiModelDetectors) {
+            tasks.add(() -> convertToApiResult(aiDetector, filePath));
+        }
+        
+        // Hugging Face API检测（如果启用）
         if (huggingfaceEnabled && huggingfaceToken != null && !huggingfaceToken.isEmpty()) {
             tasks.add(() -> detectWithHuggingFace(filePath));
         }
         
-        // 任务2: 视频帧分析
-        tasks.add(() -> detectWithFrameSampling(filePath, videoInfo));
-        
-        // 任务3: 元数据分析
-        tasks.add(() -> detectWithMetadataAnalysis(filePath, videoInfo));
-        
-        // 任务4: 质量分析
-        tasks.add(() -> detectWithQualityAnalysis(filePath, videoInfo));
-        
-        // 任务5: 运动特征分析
-        tasks.add(() -> detectWithMotionAnalysis(filePath, videoInfo));
-        
         // 并行执行所有任务
         List<ApiResult> apiResults = new ArrayList<>();
         try {
-            List<Future<ApiResult>> futures = executorService.invokeAll(tasks, 60, TimeUnit.SECONDS);
+            List<Future<ApiResult>> futures = executorService.invokeAll(tasks, 90, TimeUnit.SECONDS);
             for (Future<ApiResult> future : futures) {
                 try {
                     ApiResult result = future.get();
@@ -199,14 +214,65 @@ public class AiVideoDetectionServiceImplV2 implements IAiVideoDetectionService {
             throw new RuntimeException("所有检测API均失败");
         }
         
-        // 3. 汇总结果
-        detail.setApiResults(apiResults);
-        aggregateResults(detail, apiResults);
+        log.info("视频检测完成，共执行了{}个检测器，成功{}个", 
+                videoDetectors.size() + aiModelDetectors.size() + (huggingfaceEnabled ? 1 : 0), 
+                apiResults.size());
         
-        // 4. 生成详细分析报告
-        generateAnalysisReport(detail, apiResults);
+        // 3. 使用聚合器汇总结果
+        VideoDetectionDetail detail = videoAggregator.aggregate(apiResults);
+        detail.setVideoInfo(videoInfo);
         
         return detail;
+    }
+
+    /**
+     * 将AI模型检测结果转换为ApiResult
+     */
+    private ApiResult convertToApiResult(IVideoAiModelDetector aiDetector, String filePath) {
+        ApiResult result = new ApiResult();
+        
+        try {
+            // 提取视频帧进行分析
+            List<BufferedImage> frames = videoFeatureAnalyzer.extractFrames(filePath, 10);
+            
+            if (frames.isEmpty()) {
+                log.warn("未能提取视频帧，跳过AI模型检测器: {}", aiDetector.getModelName());
+                return null;
+            }
+            
+            // 执行AI模型检测（使用带metadata的方法）
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("filePath", filePath);
+            metadata.put("frameCount", frames.size());
+            
+            VideoModelDetectionResult modelResult = aiDetector.detectModel(frames, metadata);
+            
+            // 转换为ApiResult格式
+            result.setApiName("AI模型检测 - " + modelResult.getModelName());
+            result.setProvider("AI反向推理");
+            result.setWeight(BigDecimal.valueOf(0.15)); // AI模型检测器权重
+                result.setScore(BigDecimal.valueOf(modelResult.getConfidence() / 100.0).setScale(4, RoundingMode.HALF_UP));
+                result.setIsAI(modelResult.getConfidence() > 60.0);
+            result.setModel(modelResult.getModelName());
+            
+            // 组装详细信息
+            Map<String, Object> details = new HashMap<>();
+            details.put("modelName", modelResult.getModelName());
+            details.put("confidence", modelResult.getConfidence());
+            details.put("scores", modelResult.getScores());
+            details.put("features", modelResult.getFeatures());
+            details.put("suggestions", modelResult.getSuggestions());
+            result.setDetails(details);
+            
+            log.info("AI模型检测器[{}]完成，置信度: {}%", 
+                    modelResult.getModelName(), modelResult.getConfidence());
+            
+        } catch (Exception e) {
+            log.error("AI模型检测器执行失败: " + aiDetector.getModelName(), e);
+            return null;
+        }
+        
+        return result;
     }
 
     /**

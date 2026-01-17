@@ -1,16 +1,17 @@
 package com.ruoyi.web.controller.ai;
 
-import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.web.annotation.RequiresAuth;
 import com.ruoyi.web.domain.AiDetectionRecord;
 import com.ruoyi.web.service.IAiAudioDetectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 
 /**
@@ -19,7 +20,7 @@ import java.util.*;
  * 
  * @author ruoyi
  */
-@Anonymous
+@RequiresAuth
 @RestController
 @RequestMapping("/ai/detection/audio")
 public class AiAudioDetectionController extends BaseController {
@@ -37,14 +38,16 @@ public class AiAudioDetectionController extends BaseController {
     /**
      * 上传音频并检测（支持检测模式选择）
      */
-    @Anonymous
+    @RequiresAuth
     @Log(title = "AI音频检测", businessType = BusinessType.OTHER)
     @PostMapping("/upload")
     public AjaxResult uploadAndDetect(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "mode", defaultValue = "standard") String mode,
-            @RequestParam(value = "userId", required = false) String userIdStr) {
+            HttpServletRequest request) {
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            
             // 验证文件
             if (file == null || file.isEmpty()) {
                 return AjaxResult.error("请选择要上传的音频文件");
@@ -71,19 +74,6 @@ public class AiAudioDetectionController extends BaseController {
                 return AjaxResult.error("不支持的检测模式，请选择：fast(快速)、standard(标准)、deep(深度)");
             }
             
-            // 解析用户ID - 安全转换
-            Long userId = null;
-            if (userIdStr != null && !userIdStr.trim().isEmpty() 
-                && !"null".equalsIgnoreCase(userIdStr) 
-                && !"[object Null]".equalsIgnoreCase(userIdStr)
-                && !"undefined".equalsIgnoreCase(userIdStr)) {
-                try {
-                    userId = Long.parseLong(userIdStr.trim());
-                } catch (NumberFormatException e) {
-                    logger.warn("无效的userId格式: {}", userIdStr);
-                }
-            }
-            
             // 执行检测
             AiDetectionRecord record = aiAudioDetectionService.detectAudio(file, mode, userId);
             
@@ -97,14 +87,16 @@ public class AiAudioDetectionController extends BaseController {
     /**
      * 通过URL检测音频（支持检测模式选择）
      */
-    @Anonymous
+    @RequiresAuth
     @Log(title = "AI音频URL检测", businessType = BusinessType.OTHER)
     @PostMapping("/url")
     public AjaxResult detectAudioByUrl(
             @RequestParam("url") String audioUrl,
             @RequestParam(value = "mode", defaultValue = "standard") String mode,
-            @RequestParam(value = "userId", required = false) String userIdStr) {
+            HttpServletRequest request) {
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            
             if (audioUrl == null || audioUrl.trim().isEmpty()) {
                 return AjaxResult.error("音频URL不能为空");
             }
@@ -119,19 +111,6 @@ public class AiAudioDetectionController extends BaseController {
                 return AjaxResult.error("不支持的检测模式，请选择：fast(快速)、standard(标准)、deep(深度)");
             }
             
-            // 解析用户ID - 安全转换
-            Long userId = null;
-            if (userIdStr != null && !userIdStr.trim().isEmpty() 
-                && !"null".equalsIgnoreCase(userIdStr) 
-                && !"[object Null]".equalsIgnoreCase(userIdStr)
-                && !"undefined".equalsIgnoreCase(userIdStr)) {
-                try {
-                    userId = Long.parseLong(userIdStr.trim());
-                } catch (NumberFormatException e) {
-                    logger.warn("无效的userId格式: {}", userIdStr);
-                }
-            }
-            
             AiDetectionRecord record = aiAudioDetectionService.detectAudioByUrl(audioUrl, mode, userId);
             
             return AjaxResult.success("检测完成", record);
@@ -144,14 +123,16 @@ public class AiAudioDetectionController extends BaseController {
     /**
      * 批量检测音频（最多10个文件）
      */
-    @Anonymous
+    @RequiresAuth
     @Log(title = "AI音频批量检测", businessType = BusinessType.OTHER)
     @PostMapping("/batch")
     public AjaxResult batchDetect(
             @RequestParam("files") MultipartFile[] files,
             @RequestParam(value = "mode", defaultValue = "standard") String mode,
-            @RequestParam(value = "userId", required = false) String userIdStr) {
+            HttpServletRequest request) {
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            
             // 验证文件数量
             if (files == null || files.length == 0) {
                 return AjaxResult.error("请选择要上传的音频文件");
@@ -164,19 +145,6 @@ public class AiAudioDetectionController extends BaseController {
             // 验证检测模式
             if (!isValidMode(mode)) {
                 return AjaxResult.error("不支持的检测模式，请选择：fast(快速)、standard(标准)、deep(深度)");
-            }
-            
-            // 解析用户ID - 安全转换
-            Long userId = null;
-            if (userIdStr != null && !userIdStr.trim().isEmpty() 
-                && !"null".equalsIgnoreCase(userIdStr) 
-                && !"[object Null]".equalsIgnoreCase(userIdStr)
-                && !"undefined".equalsIgnoreCase(userIdStr)) {
-                try {
-                    userId = Long.parseLong(userIdStr.trim());
-                } catch (NumberFormatException e) {
-                    logger.warn("无效的userId格式: {}", userIdStr);
-                }
             }
             
             List<AiDetectionRecord> successResults = new ArrayList<>();
@@ -238,7 +206,7 @@ public class AiAudioDetectionController extends BaseController {
     /**
      * 获取检测模式说明
      */
-    @Anonymous
+    @RequiresAuth
     @GetMapping("/modes")
     public AjaxResult getDetectionModes() {
         List<Map<String, Object>> modes = new ArrayList<>();

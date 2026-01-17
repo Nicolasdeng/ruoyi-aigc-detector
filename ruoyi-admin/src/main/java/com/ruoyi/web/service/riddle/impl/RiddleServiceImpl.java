@@ -75,15 +75,17 @@ public class RiddleServiceImpl implements IRiddleService
         String userAns = userAnswer.trim().toLowerCase();
         boolean isCorrect = correctAnswer.equals(userAns) || correctAnswer.contains(userAns) || userAns.contains(correctAnswer);
 
-        // 记录答题历史
-        RiddleHistory history = new RiddleHistory();
-        history.setUserId(userId);
-        history.setQuestionId(questionId);
-        history.setUserAnswer(userAnswer);
-        history.setIsCorrect(isCorrect ? "1" : "0");
-        history.setAnswerTime(new Date());
-        history.setTimeSpent(timeSpent);
-        riddleHistoryMapper.insertRiddleHistory(history);
+        // 记录答题历史（仅登录用户）
+        if (userId != null) {
+            RiddleHistory history = new RiddleHistory();
+            history.setUserId(userId);
+            history.setQuestionId(questionId);
+            history.setUserAnswer(userAnswer);
+            history.setIsCorrect(isCorrect ? "1" : "0");
+            history.setAnswerTime(new Date());
+            history.setTimeSpent(timeSpent);
+            riddleHistoryMapper.insertRiddleHistory(history);
+        }
 
         // 返回结果
         result.put("success", true);

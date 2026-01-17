@@ -6,6 +6,7 @@ import com.ruoyi.web.mapper.AiDetectionMapper;
 import com.ruoyi.web.service.IAiImageDetectionService;
 import com.ruoyi.web.service.image.IDetectionAggregator;
 import com.ruoyi.web.service.image.IImageUploadService;
+import com.ruoyi.web.service.image.IImageAiModelDetector;
 import com.ruoyi.web.service.image.detector.IImageDetector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +14,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -46,13 +51,16 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
     @Autowired
     private List<IImageDetector> imageDetectors; // 自动注入所有检测器
     
+    @Autowired(required = false)
+    private List<IImageAiModelDetector> aiModelDetectors; // 自动注入所有AI模型检测器
+    
     private final ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     /**
      * 检测上传的图片
      */
     @Override
-    public AiDetectionRecord detectImage(MultipartFile file) throws Exception {
+    public AiDetectionRecord detectImage(MultipartFile file, Long userId) throws Exception {
         // 1. 上传图片
         Map<String, Object> uploadResult = imageUploadService.uploadImage(file);
         String fileUrl = (String) uploadResult.get("fileUrl");
@@ -61,6 +69,7 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
         
         // 2. 创建检测记录
         AiDetectionRecord record = new AiDetectionRecord();
+        record.setUserId(userId);
         record.setFileUrl(fileUrl);
         record.setFileType("image");
         record.setFileSize(fileSize);
@@ -71,14 +80,22 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
             // 3. 执行多引擎检测
             List<Map<String, Object>> detectionResults = performMultiDetectorCheck(fullPath);
             
-            // 4. 聚合结果
+            // 4. 执行AI模型识别
+            Map<String, Object> aiModelResult = performAiModelDetection(fullPath);
+            
+            // 5. 聚合结果
             Map<String, Object> aggregatedResult = detectionAggregator.aggregateResults(detectionResults);
             
-            // 5. 更新记录
+            // 6. 合并AI模型识别结果
+            if (aiModelResult != null && !aiModelResult.isEmpty()) {
+                aggregatedResult.put("aiModelDetection", aiModelResult);
+            }
+            
+            // 7. 更新记录
             updateRecordWithResults(record, aggregatedResult);
             
-            log.info("图片检测完成: {} - 结果: {} - 置信度: {}", 
-                    fileUrl, record.getDetectionResult(), record.getConfidenceScore());
+            log.info("图片检测完成，用户ID: {} - 文件: {} - 结果: {} - 置信度: {}", 
+                    userId, fileUrl, record.getDetectionResult(), record.getConfidenceScore());
             
         } catch (Exception e) {
             log.error("图片检测失败: " + fileUrl, e);
@@ -95,12 +112,13 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
      * 通过URL检测图片
      */
     @Override
-    public AiDetectionRecord detectImageByUrl(String imageUrl) throws Exception {
+    public AiDetectionRecord detectImageByUrl(String imageUrl, Long userId) throws Exception {
         // 1. 下载图片
         String localPath = imageUploadService.downloadImageFromUrl(imageUrl);
         
         // 2. 创建检测记录
         AiDetectionRecord record = new AiDetectionRecord();
+        record.setUserId(userId);
         record.setFileUrl(imageUrl);
         record.setFileType("image");
         record.setStatus("PROCESSING");
@@ -110,14 +128,22 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
             // 3. 执行多引擎检测
             List<Map<String, Object>> detectionResults = performMultiDetectorCheck(localPath);
             
-            // 4. 聚合结果
+            // 4. 执行AI模型识别
+            Map<String, Object> aiModelResult = performAiModelDetection(localPath);
+            
+            // 5. 聚合结果
             Map<String, Object> aggregatedResult = detectionAggregator.aggregateResults(detectionResults);
             
-            // 5. 更新记录
+            // 6. 合并AI模型识别结果
+            if (aiModelResult != null && !aiModelResult.isEmpty()) {
+                aggregatedResult.put("aiModelDetection", aiModelResult);
+            }
+            
+            // 7. 更新记录
             updateRecordWithResults(record, aggregatedResult);
             
-            log.info("图片URL检测完成: {} - 结果: {} - 置信度: {}", 
-                    imageUrl, record.getDetectionResult(), record.getConfidenceScore());
+            log.info("图片URL检测完成，用户ID: {} - 文件: {} - 结果: {} - 置信度: {}", 
+                    userId, imageUrl, record.getDetectionResult(), record.getConfidenceScore());
             
         } catch (Exception e) {
             log.error("图片URL检测失败: " + imageUrl, e);
@@ -233,5 +259,97 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
         record.setStatus("COMPLETED");
         
         aiDetectionMapper.updateRecord(record);
+    }
+
+    /**
+     * 执行AI模型检测
+     * 识别图片可能由哪个AI工具生成
+     */
+    private Map<String, Object> performAiModelDetection(String filePath) {
+        Map<String, Object> result = new HashMap<>();
+        
+        // 检查是否有可用的AI模型检测器
+        if (aiModelDetectors == null || aiModelDetectors.isEmpty()) {
+            log.warn("未找到AI模型检测器，跳过AI模型识别");
+            return result;
+        }
+        
+        try {
+            // 读取图片
+            BufferedImage image = ImageIO.read(new File(filePath));
+            if (image == null) {
+                log.warn("无法读取图片文件: {}", filePath);
+                return result;
+            }
+            
+            // 存储所有检测器的结果
+            List<Map<String, Object>> allResults = new ArrayList<>();
+            IImageAiModelDetector.ImageModelDetectionResult bestResult = null;
+            double highestScore = 0.0;
+            
+            // 调用所有AI模型检测器
+            for (IImageAiModelDetector detector : aiModelDetectors) {
+                try {
+                    IImageAiModelDetector.ImageModelDetectionResult detectionResult = 
+                        detector.detectModel(image);
+                    
+                    // 构建检测结果
+                    Map<String, Object> detectorResult = new HashMap<>();
+                    detectorResult.put("modelName", detectionResult.getModelName());
+                    detectorResult.put("totalScore", detectionResult.getTotalScore());
+                    detectorResult.put("colorScore", detectionResult.getColorScore());
+                    detectorResult.put("textureScore", detectionResult.getTextureScore());
+                    detectorResult.put("noiseScore", detectionResult.getNoiseScore());
+                    detectorResult.put("styleScore", detectionResult.getStyleScore());
+                    detectorResult.put("fingerprintScore", detectionResult.getFingerprintScore());
+                    detectorResult.put("suggestions", detectionResult.getSuggestions());
+                    
+                    allResults.add(detectorResult);
+                    
+                    // 记录最高分
+                    if (detectionResult.getTotalScore() > highestScore) {
+                        highestScore = detectionResult.getTotalScore();
+                        bestResult = detectionResult;
+                    }
+                    
+                    log.info("AI模型检测 - {}: 总分={}, 色彩={}, 纹理={}, 噪声={}, 风格={}, 指纹={}", 
+                            detectionResult.getModelName(),
+                            detectionResult.getTotalScore(),
+                            detectionResult.getColorScore(),
+                            detectionResult.getTextureScore(),
+                            detectionResult.getNoiseScore(),
+                            detectionResult.getStyleScore(),
+                            detectionResult.getFingerprintScore());
+                    
+                } catch (Exception e) {
+                    log.warn("AI模型检测器 {} 执行失败: {}", 
+                            detector.getModelName(), e.getMessage());
+                }
+            }
+            
+            // 设置最佳匹配结果
+            if (bestResult != null) {
+                result.put("mostLikelyModel", bestResult.getModelName());
+                result.put("confidence", highestScore);
+                result.put("colorScore", bestResult.getColorScore());
+                result.put("textureScore", bestResult.getTextureScore());
+                result.put("noiseScore", bestResult.getNoiseScore());
+                result.put("styleScore", bestResult.getStyleScore());
+                result.put("fingerprintScore", bestResult.getFingerprintScore());
+                result.put("featureDetails", bestResult.getFeatureDetails());
+                result.put("suggestions", bestResult.getSuggestions());
+                result.put("allResults", allResults);
+                
+                log.info("AI模型识别完成 - 最可能的模型: {} (置信度: {})", 
+                        bestResult.getModelName(), highestScore);
+            } else {
+                log.warn("所有AI模型检测器均未返回有效结果");
+            }
+            
+        } catch (Exception e) {
+            log.error("执行AI模型检测时发生错误: " + filePath, e);
+        }
+        
+        return result;
     }
 }

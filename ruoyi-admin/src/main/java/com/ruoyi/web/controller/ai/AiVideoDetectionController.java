@@ -1,22 +1,24 @@
 package com.ruoyi.web.controller.ai;
 
-import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.web.annotation.RequiresAuth;
 import com.ruoyi.web.domain.AiDetectionRecord;
 import com.ruoyi.web.service.IAiVideoDetectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
+
 /**
  * AI视频检测Controller
  * 
  * @author ruoyi
  */
-@Anonymous
+@RequiresAuth
 @RestController
 @RequestMapping("/ai/detection/video")
 public class AiVideoDetectionController extends BaseController {
@@ -27,13 +29,15 @@ public class AiVideoDetectionController extends BaseController {
     /**
      * 上传视频并检测
      */
-    @Anonymous
+    @RequiresAuth
     @Log(title = "AI视频检测", businessType = BusinessType.OTHER)
     @PostMapping("/upload")
     public AjaxResult uploadAndDetect(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "userId", required = false) String userIdStr) {
+            HttpServletRequest request) {
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            
             // 验证文件
             if (file == null || file.isEmpty()) {
                 return AjaxResult.error("请选择要上传的视频");
@@ -51,20 +55,7 @@ public class AiVideoDetectionController extends BaseController {
             }
             
             // 执行检测
-            AiDetectionRecord record = aiVideoDetectionService.detectVideo(file);
-            
-            // 设置用户ID - 安全转换
-            if (userIdStr != null && !userIdStr.trim().isEmpty() 
-                && !"null".equalsIgnoreCase(userIdStr) 
-                && !"[object Null]".equalsIgnoreCase(userIdStr)
-                && !"undefined".equalsIgnoreCase(userIdStr)) {
-                try {
-                    Long userId = Long.parseLong(userIdStr.trim());
-                    record.setUserId(userId);
-                } catch (NumberFormatException e) {
-                    logger.warn("无效的userId格式: {}", userIdStr);
-                }
-            }
+            AiDetectionRecord record = aiVideoDetectionService.detectVideo(file, userId);
             
             return AjaxResult.success("检测完成", record);
         } catch (Exception e) {
@@ -76,11 +67,14 @@ public class AiVideoDetectionController extends BaseController {
     /**
      * 通过URL检测视频
      */
-    @Anonymous
+    @RequiresAuth
     @Log(title = "AI视频URL检测", businessType = BusinessType.OTHER)
     @PostMapping("/url")
-    public AjaxResult detectVideoByUrl(@RequestParam("url") String videoUrl) {
+    public AjaxResult detectVideoByUrl(@RequestParam("url") String videoUrl,
+                                       HttpServletRequest request) {
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            
             if (videoUrl == null || videoUrl.trim().isEmpty()) {
                 return AjaxResult.error("视频URL不能为空");
             }
@@ -90,7 +84,7 @@ public class AiVideoDetectionController extends BaseController {
                 return AjaxResult.error("请提供有效的视频URL（需以http://或https://开头）");
             }
             
-            AiDetectionRecord record = aiVideoDetectionService.detectVideoByUrl(videoUrl);
+            AiDetectionRecord record = aiVideoDetectionService.detectVideoByUrl(videoUrl, userId);
             
             return AjaxResult.success("检测完成", record);
         } catch (Exception e) {

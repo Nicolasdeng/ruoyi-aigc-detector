@@ -1,12 +1,13 @@
 package com.ruoyi.web.controller.ai;
 
-import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.web.annotation.RequiresAuth;
 import com.ruoyi.web.service.IAiTextDetectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 /**
@@ -15,7 +16,7 @@ import java.util.Map;
  * 
  * @author ruoyi
  */
-@Anonymous
+@RequiresAuth
 @RestController
 @RequestMapping("/ai/detection/text")
 public class AiTextDetectionController extends BaseController {
@@ -29,10 +30,12 @@ public class AiTextDetectionController extends BaseController {
      * @param params 请求参数，包含text字段
      * @return 检测结果，包括综合评分、各检测器详情、风险等级等
      */
-    @Anonymous
+    @RequiresAuth
     @PostMapping("/detect")
-    public AjaxResult detectText(@RequestBody Map<String, String> params) {
+    public AjaxResult detectText(@RequestBody Map<String, String> params, HttpServletRequest request) {
         try {
+            // 从request获取userId
+            Long userId = (Long) request.getAttribute("userId");
             String text = params.get("text");
             
             // 参数验证
@@ -46,8 +49,8 @@ public class AiTextDetectionController extends BaseController {
                 return error("文本内容过短，请输入至少10个字符");
             }
             
-            // 调用优化的多检测器并行检测
-            Map<String, Object> result = aiTextDetectionService.detectText(text);
+            // 调用优化的多检测器并行检测，传递userId
+            Map<String, Object> result = aiTextDetectionService.detectText(text, userId);
             
             // 检查是否有错误
             if (result.containsKey("error") && (Boolean) result.get("error")) {
@@ -68,9 +71,9 @@ public class AiTextDetectionController extends BaseController {
      * 
      * @return 检测器列表
      */
-    @Anonymous
+    @RequiresAuth
     @GetMapping("/detectors")
-    public AjaxResult getDetectors() {
+    public AjaxResult getDetectors(HttpServletRequest request) {
         try {
             // 这里可以添加获取检测器列表的逻辑
             return success("检测器信息获取成功");
