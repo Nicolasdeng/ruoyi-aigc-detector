@@ -1,0 +1,191 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "AI检测",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/entertainment/entertainment",
+      "style": {
+        "navigationBarTitleText": "娱乐中心",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/mine/mine",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/detect/image",
+      "style": {
+        "navigationBarTitleText": "图片检测",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/detect/text",
+      "style": {
+        "navigationBarTitleText": "文本检测",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/detect/video",
+      "style": {
+        "navigationBarTitleText": "视频检测",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/detect/audio",
+      "style": {
+        "navigationBarTitleText": "音频检测",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/history/history",
+      "style": {
+        "navigationBarTitleText": "检测历史",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/detect/paper",
+      "style": {
+        "navigationBarTitleText": "论文检测",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/paper/optimize",
+      "style": {
+        "navigationBarTitleText": "优化建议",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/paper/result",
+      "style": {
+        "navigationBarTitleText": "检测结果",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/statistics/trend",
+      "style": {
+        "navigationBarTitleText": "数据趋势",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/history/detail",
+      "style": {
+        "navigationBarTitleText": "检测详情",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/riddle/riddle",
+      "style": {
+        "navigationBarTitleText": "脑筋急转弯",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/riddle/history",
+      "style": {
+        "navigationBarTitleText": "答题历史",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/agreement/user-agreement",
+      "style": {
+        "navigationBarTitleText": "用户服务协议",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/agreement/privacy-policy",
+      "style": {
+        "navigationBarTitleText": "隐私政策",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/membership/center",
+      "style": {
+        "navigationBarTitleText": "会员中心",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/membership/purchase",
+      "style": {
+        "navigationBarTitleText": "购买会员",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    }
+  ],
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#667eea",
+    "borderStyle": "white",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "检测"
+      },
+      {
+        "pagePath": "pages/entertainment/entertainment",
+        "text": "娱乐"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的"
+      }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "AI检测工具",
+    "navigationBarBackgroundColor": "#667eea",
+    "backgroundColor": "#F5F6FA"
+  }
+}
