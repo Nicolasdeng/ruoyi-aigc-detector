@@ -45,3 +45,61 @@ nbdist/
 !*/build/*.java
 !*/build/*.html
 !*/build/*.xml
+
+# =====================
+# Java / Maven
+# =====================
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# =====================
+# Node / Vue / UniApp
+# =====================
+node_modules/
+dist/
+unpackage/
+.hbuilderx/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =====================
+# IDE
+# =====================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# =====================
+# OS
+# =====================
+.DS_Store
+Thumbs.db
+
+# =====================
+# Logs
+# =====================
+logs/
+*.pid
+
+# =====================
+# Env / Secret
+# =====================
+.env
+.env.*
+application-local.yml
+application-local.yaml
+bootstrap-local.yml
+bootstrap-local.yaml
+
+# =====================
+# Build cache
+# =====================
+.mvn/wrapper/maven-wrapper.jar

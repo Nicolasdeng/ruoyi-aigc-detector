@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.UserMembershipMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.UserMembership" id="UserMembershipResult">
+        <id     property="membershipId"       column="membership_id"      />
+        <result property="userId"             column="user_id"            />
+        <result property="membershipType"     column="membership_type"    />
+        <result property="startTime"          column="start_time"         />
+        <result property="expireTime"         column="expire_time"        />
+        <result property="isActive"           column="is_active"          />
+        <result property="totalSpent"         column="total_spent"        />
+        <result property="createTime"         column="create_time"        />
+        <result property="updateTime"         column="update_time"        />
+    </resultMap>
+
+    <sql id="selectUserMembershipVo">
+        select membership_id, user_id, membership_type, start_time, expire_time, 
+               is_active, total_spent, create_time, update_time
+        from user_membership
+    </sql>
+
+    <!-- 根据ID查询会员信息 -->
+    <select id="selectUserMembershipById" parameterType="Long" resultMap="UserMembershipResult">
+        <include refid="selectUserMembershipVo"/>
+        where membership_id = #{membershipId}
+    </select>
+
+    <!-- 根据用户ID查询有效会员信息 -->
+    <select id="selectValidMembershipByUserId" parameterType="Long" resultMap="UserMembershipResult">
+        <include refid="selectUserMembershipVo"/>
+        where user_id = #{userId}
+          and is_active = 1
+          and (expire_time is null or expire_time > now())
+        order by expire_time desc
+        limit 1
+    </select>
+
+    <!-- 查询会员信息列表 -->
+    <select id="selectUserMembershipList" parameterType="com.ruoyi.web.domain.UserMembership" resultMap="UserMembershipResult">
+        <include refid="selectUserMembershipVo"/>
+        <where>  
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+            <if test="membershipType != null and membershipType != ''">
+                and membership_type = #{membershipType}
+            </if>
+            <if test="isActive != null">
+                and is_active = #{isActive}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <!-- 新增会员信息 -->
+    <insert id="insertUserMembership" parameterType="com.ruoyi.web.domain.UserMembership" useGeneratedKeys="true" keyProperty="membershipId">
+        insert into user_membership
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="membershipType != null and membershipType != ''">membership_type,</if>
+            <if test="startTime != null">start_time,</if>
+            <if test="expireTime != null">expire_time,</if>
+            <if test="isActive != null">is_active,</if>
+            <if test="totalSpent != null">total_spent,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="membershipType != null and membershipType != ''">#{membershipType},</if>
+            <if test="startTime != null">#{startTime},</if>
+            <if test="expireTime != null">#{expireTime},</if>
+            <if test="isActive != null">#{isActive},</if>
+            <if test="totalSpent != null">#{totalSpent},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+        </trim>
+    </insert>
+
+    <!-- 修改会员信息 -->
+    <update id="updateUserMembership" parameterType="com.ruoyi.web.domain.UserMembership">
+        update user_membership
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="membershipType != null and membershipType != ''">membership_type = #{membershipType},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="expireTime != null">expire_time = #{expireTime},</if>
+            <if test="isActive != null">is_active = #{isActive},</if>
+            <if test="totalSpent != null">total_spent = #{totalSpent},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where membership_id = #{membershipId}
+    </update>
+
+    <!-- 删除会员信息 -->
+    <delete id="deleteUserMembershipById" parameterType="Long">
+        delete from user_membership where membership_id = #{membershipId}
+    </delete>
+
+    <!-- 批量删除会员信息 -->
+    <delete id="deleteUserMembershipByIds" parameterType="Long">
+        delete from user_membership where membership_id in 
+        <foreach item="membershipId" collection="array" open="(" separator="," close=")">
+            #{membershipId}
+        </foreach>
+    </delete>
+
+    <!-- 更新会员状态 -->
+    <update id="updateMembershipStatus">
+        update user_membership
+        set is_active = #{isActive},
+            update_time = now()
+        where membership_id = #{membershipId}
+    </update>
+
+    <!-- 更新会员过期时间 -->
+    <update id="updateMembershipExpireTime">
+        update user_membership
+        set expire_time = #{expireTime},
+            update_time = now()
+        where membership_id = #{membershipId}
+    </update>
+
+    <!-- 升级会员 -->
+    <update id="upgradeMembership">
+        update user_membership
+        set membership_type = #{newType},
+            expire_time = #{newExpireTime},
+            is_active = 1,
+            update_time = now()
+        where membership_id = #{membershipId}
+    </update>
+
+    <!-- 查询即将过期的会员（7天内） -->
+    <select id="selectExpiringMemberships" parameterType="int" resultMap="UserMembershipResult">
+        <include refid="selectUserMembershipVo"/>
+        where is_active = 1
+          and expire_time is not null
+          and expire_time > now()
+          and expire_time &lt;= date_add(now(), interval #{days} day)
+        order by expire_time asc
+    </select>
+
+    <!-- 查询已过期的会员 -->
+    <select id="selectExpiredMemberships" resultMap="UserMembershipResult">
+        <include refid="selectUserMembershipVo"/>
+        where is_active = 1
+          and expire_time is not null
+          and expire_time &lt;= now()
+        order by expire_time desc
+    </select>
+
+    <!-- 停用已过期的会员 -->
+    <update id="deactivateExpiredMembership" parameterType="Long">
+        update user_membership
+        set is_active = 0,
+            update_time = now()
+        where membership_id = #{membershipId}
+          and expire_time &lt;= now()
+    </update>
+
+    <!-- 累加用户总消费金额 -->
+    <update id="incrementTotalSpent">
+        update user_membership
+        set total_spent = total_spent + #{amount},
+            update_time = now()
+        where membership_id = #{membershipId}
+    </update>
+
+
+    <!-- 根据用户ID查询所有会员记录（包括历史） -->
+    <select id="selectMembershipHistoryByUserId" parameterType="Long" resultMap="UserMembershipResult">
+        <include refid="selectUserMembershipVo"/>
+        where user_id = #{userId}
+        order by create_time desc
+    </select>
+
+    <!-- 统计会员用户数量 -->
+    <select id="countMembershipByType" parameterType="String" resultType="int">
+        select count(*)
+        from user_membership
+        where membership_type = #{membershipType}
+          and is_active = 1
+          and (expire_time is null or expire_time > now())
+    </select>
+
+    <!-- 统计总消费金额 -->
+    <select id="sumTotalSpentByUserId" parameterType="Long" resultType="java.math.BigDecimal">
+        select ifnull(sum(total_spent), 0)
+        from user_membership
+        where user_id = #{userId}
+    </select>
+
+</mapper>

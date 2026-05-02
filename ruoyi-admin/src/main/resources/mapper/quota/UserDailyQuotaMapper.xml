@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.UserDailyQuotaMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.UserDailyQuota" id="UserDailyQuotaResult">
+        <result property="quotaId"           column="quota_id"           />
+        <result property="userId"            column="user_id"            />
+        <result property="quotaDate"         column="quota_date"         />
+        <result property="textQuota"         column="text_quota"         />
+        <result property="textUsed"          column="text_used"          />
+        <result property="imageQuota"        column="image_quota"        />
+        <result property="imageUsed"         column="image_used"         />
+        <result property="videoQuota"        column="video_quota"        />
+        <result property="videoUsed"         column="video_used"         />
+        <result property="audioQuota"        column="audio_quota"        />
+        <result property="audioUsed"         column="audio_used"         />
+        <result property="paperQuota"        column="paper_quota"        />
+        <result property="paperUsed"         column="paper_used"         />
+        <result property="adBonusQuota"      column="ad_bonus_quota"     />
+        <result property="createTime"        column="create_time"        />
+        <result property="updateTime"        column="update_time"        />
+    </resultMap>
+
+    <sql id="selectUserDailyQuotaVo">
+        select quota_id, user_id, quota_date, text_quota, text_used, image_quota, image_used,
+               video_quota, video_used, audio_quota, audio_used, paper_quota, paper_used,
+               ad_bonus_quota, create_time, update_time
+        from user_daily_quota
+    </sql>
+
+    <select id="selectUserDailyQuotaById" parameterType="Long" resultMap="UserDailyQuotaResult">
+        <include refid="selectUserDailyQuotaVo"/>
+        where quota_id = #{quotaId}
+    </select>
+
+    <select id="selectTodayQuotaByUserId" resultMap="UserDailyQuotaResult">
+        <include refid="selectUserDailyQuotaVo"/>
+        where user_id = #{userId} and quota_date = #{today}
+    </select>
+
+    <select id="selectQuotaByUserIdAndDate" resultMap="UserDailyQuotaResult">
+        <include refid="selectUserDailyQuotaVo"/>
+        where user_id = #{userId} and quota_date = #{date}
+    </select>
+
+    <select id="selectUserDailyQuotaList" parameterType="com.ruoyi.web.domain.UserDailyQuota" resultMap="UserDailyQuotaResult">
+        <include refid="selectUserDailyQuotaVo"/>
+        <where>  
+            <if test="userId != null">and user_id = #{userId}</if>
+            <if test="quotaDate != null">and quota_date = #{quotaDate}</if>
+        </where>
+        order by quota_date desc
+    </select>
+    
+    <insert id="insertUserDailyQuota" parameterType="com.ruoyi.web.domain.UserDailyQuota" useGeneratedKeys="true" keyProperty="quotaId">
+        insert into user_daily_quota
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="quotaDate != null">quota_date,</if>
+            <if test="textQuota != null">text_quota,</if>
+            <if test="textUsed != null">text_used,</if>
+            <if test="imageQuota != null">image_quota,</if>
+            <if test="imageUsed != null">image_used,</if>
+            <if test="videoQuota != null">video_quota,</if>
+            <if test="videoUsed != null">video_used,</if>
+            <if test="audioQuota != null">audio_quota,</if>
+            <if test="audioUsed != null">audio_used,</if>
+            <if test="paperQuota != null">paper_quota,</if>
+            <if test="paperUsed != null">paper_used,</if>
+            <if test="adBonusQuota != null">ad_bonus_quota,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="quotaDate != null">#{quotaDate},</if>
+            <if test="textQuota != null">#{textQuota},</if>
+            <if test="textUsed != null">#{textUsed},</if>
+            <if test="imageQuota != null">#{imageQuota},</if>
+            <if test="imageUsed != null">#{imageUsed},</if>
+            <if test="videoQuota != null">#{videoQuota},</if>
+            <if test="videoUsed != null">#{videoUsed},</if>
+            <if test="audioQuota != null">#{audioQuota},</if>
+            <if test="audioUsed != null">#{audioUsed},</if>
+            <if test="paperQuota != null">#{paperQuota},</if>
+            <if test="paperUsed != null">#{paperUsed},</if>
+            <if test="adBonusQuota != null">#{adBonusQuota},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateUserDailyQuota" parameterType="com.ruoyi.web.domain.UserDailyQuota">
+        update user_daily_quota
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="textQuota != null">text_quota = #{textQuota},</if>
+            <if test="textUsed != null">text_used = #{textUsed},</if>
+            <if test="imageQuota != null">image_quota = #{imageQuota},</if>
+            <if test="imageUsed != null">image_used = #{imageUsed},</if>
+            <if test="videoQuota != null">video_quota = #{videoQuota},</if>
+            <if test="videoUsed != null">video_used = #{videoUsed},</if>
+            <if test="audioQuota != null">audio_quota = #{audioQuota},</if>
+            <if test="audioUsed != null">audio_used = #{audioUsed},</if>
+            <if test="paperQuota != null">paper_quota = #{paperQuota},</if>
+            <if test="paperUsed != null">paper_used = #{paperUsed},</if>
+            <if test="adBonusQuota != null">ad_bonus_quota = #{adBonusQuota},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where quota_id = #{quotaId}
+    </update>
+
+    <update id="incrementTextUsed">
+        update user_daily_quota
+        set text_used = text_used + 1,
+            update_time = now()
+        where user_id = #{userId} and quota_date = #{date}
+    </update>
+
+    <update id="incrementImageUsed">
+        update user_daily_quota
+        set image_used = image_used + 1,
+            update_time = now()
+        where user_id = #{userId} and quota_date = #{date}
+    </update>
+
+    <update id="incrementVideoUsed">
+        update user_daily_quota
+        set video_used = video_used + 1,
+            update_time = now()
+        where user_id = #{userId} and quota_date = #{date}
+    </update>
+
+    <update id="incrementAudioUsed">
+        update user_daily_quota
+        set audio_used = audio_used + 1,
+            update_time = now()
+        where user_id = #{userId} and quota_date = #{date}
+    </update>
+
+    <update id="incrementPaperUsed">
+        update user_daily_quota
+        set paper_used = paper_used + 1,
+            update_time = now()
+        where user_id = #{userId} and quota_date = #{date}
+    </update>
+
+    <update id="incrementAdBonus">
+        update user_daily_quota
+        set ad_bonus_quota = ad_bonus_quota + 1,
+            update_time = now()
+        where user_id = #{userId} and quota_date = #{date}
+    </update>
+
+    <delete id="deleteUserDailyQuotaById" parameterType="Long">
+        delete from user_daily_quota where quota_id = #{quotaId}
+    </delete>
+
+    <delete id="deleteUserDailyQuotaByIds" parameterType="String">
+        delete from user_daily_quota where quota_id in 
+        <foreach item="quotaId" collection="array" open="(" separator="," close=")">
+            #{quotaId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteOldQuota">
+        delete from user_daily_quota where quota_date &lt; #{beforeDate}
+    </delete>
+
+    <select id="selectQuotaUsageStats" resultType="java.util.Map">
+        select 
+            sum(text_used) as totalTextUsed,
+            sum(image_used) as totalImageUsed,
+            sum(video_used) as totalVideoUsed,
+            sum(audio_used) as totalAudioUsed,
+            sum(paper_used) as totalPaperUsed,
+            sum(ad_bonus_quota) as totalAdBonusQuota
+        from user_daily_quota
+        where user_id = #{userId}
+        <if test="startDate != null">
+            and quota_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            and quota_date &lt;= #{endDate}
+        </if>
+    </select>
+
+</mapper>

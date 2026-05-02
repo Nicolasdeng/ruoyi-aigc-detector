@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.web.mapper.MembershipOrderMapper">
+    
+    <resultMap type="com.ruoyi.web.domain.MembershipOrder" id="MembershipOrderResult">
+        <id     property="orderId"            column="order_id"           />
+        <result property="orderNo"            column="order_no"           />
+        <result property="userId"             column="user_id"            />
+        <result property="packageType"        column="package_type"       />
+        <result property="originalAmount"     column="original_amount"    />
+        <result property="actualAmount"       column="actual_amount"      />
+        <result property="paymentMethod"      column="payment_method"     />
+        <result property="transactionId"      column="transaction_id"     />
+        <result property="orderStatus"        column="order_status"       />
+        <result property="paidTime"           column="paid_time"          />
+        <result property="createTime"         column="create_time"        />
+        <result property="updateTime"         column="update_time"        />
+    </resultMap>
+
+    <sql id="selectMembershipOrderVo">
+        select order_id, order_no, user_id, package_type, 
+               original_amount, actual_amount, 
+               payment_method, transaction_id, order_status, paid_time, 
+               create_time, update_time
+        from membership_order
+    </sql>
+
+    <!-- 根据ID查询订单 -->
+    <select id="selectMembershipOrderById" parameterType="Long" resultMap="MembershipOrderResult">
+        <include refid="selectMembershipOrderVo"/>
+        where order_id = #{orderId}
+    </select>
+
+    <!-- 根据订单号查询订单 -->
+    <select id="selectMembershipOrderByOrderNo" parameterType="String" resultMap="MembershipOrderResult">
+        <include refid="selectMembershipOrderVo"/>
+        where order_no = #{orderNo}
+    </select>
+
+    <!-- 根据交易ID查询订单 -->
+    <select id="selectMembershipOrderByTransactionId" parameterType="String" resultMap="MembershipOrderResult">
+        <include refid="selectMembershipOrderVo"/>
+        where transaction_id = #{transactionId}
+    </select>
+
+    <!-- 根据用户ID查询订单列表 -->
+    <select id="selectMembershipOrdersByUserId" parameterType="Long" resultMap="MembershipOrderResult">
+        <include refid="selectMembershipOrderVo"/>
+        where user_id = #{userId}
+        order by create_time desc
+    </select>
+
+    <!-- 查询订单列表 -->
+    <select id="selectMembershipOrderList" parameterType="com.ruoyi.web.domain.MembershipOrder" resultMap="MembershipOrderResult">
+        <include refid="selectMembershipOrderVo"/>
+        <where>  
+            <if test="orderNo != null and orderNo != ''">
+                and order_no = #{orderNo}
+            </if>
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+            <if test="packageType != null and packageType != ''">
+                and package_type = #{packageType}
+            </if>
+            <if test="orderStatus != null and orderStatus != ''">
+                and order_status = #{orderStatus}
+            </if>
+            <if test="paymentMethod != null and paymentMethod != ''">
+                and payment_method = #{paymentMethod}
+            </if>
+            <if test="transactionId != null and transactionId != ''">
+                and transaction_id = #{transactionId}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <!-- 新增订单 -->
+    <insert id="insertMembershipOrder" parameterType="com.ruoyi.web.domain.MembershipOrder" useGeneratedKeys="true" keyProperty="orderId">
+        insert into membership_order
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="packageType != null and packageType != ''">package_type,</if>
+            <if test="originalAmount != null">original_amount,</if>
+            <if test="actualAmount != null">actual_amount,</if>
+            <if test="paymentMethod != null and paymentMethod != ''">payment_method,</if>
+            <if test="transactionId != null and transactionId != ''">transaction_id,</if>
+            <if test="orderStatus != null and orderStatus != ''">order_status,</if>
+            <if test="paidTime != null">paid_time,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">#{orderNo},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="packageType != null and packageType != ''">#{packageType},</if>
+            <if test="originalAmount != null">#{originalAmount},</if>
+            <if test="actualAmount != null">#{actualAmount},</if>
+            <if test="paymentMethod != null and paymentMethod != ''">#{paymentMethod},</if>
+            <if test="transactionId != null and transactionId != ''">#{transactionId},</if>
+            <if test="orderStatus != null and orderStatus != ''">#{orderStatus},</if>
+            <if test="paidTime != null">#{paidTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+        </trim>
+    </insert>
+
+    <!-- 修改订单 -->
+    <update id="updateMembershipOrder" parameterType="com.ruoyi.web.domain.MembershipOrder">
+        update membership_order
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no = #{orderNo},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="packageType != null and packageType != ''">package_type = #{packageType},</if>
+            <if test="originalAmount != null">original_amount = #{originalAmount},</if>
+            <if test="actualAmount != null">actual_amount = #{actualAmount},</if>
+            <if test="paymentMethod != null and paymentMethod != ''">payment_method = #{paymentMethod},</if>
+            <if test="transactionId != null and transactionId != ''">transaction_id = #{transactionId},</if>
+            <if test="orderStatus != null and orderStatus != ''">order_status = #{orderStatus},</if>
+            <if test="paidTime != null">paid_time = #{paidTime},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where order_id = #{orderId}
+    </update>
+
+    <!-- 删除订单 -->
+    <delete id="deleteMembershipOrderById" parameterType="Long">
+        delete from membership_order where order_id = #{orderId}
+    </delete>
+
+    <!-- 批量删除订单 -->
+    <delete id="deleteMembershipOrderByIds" parameterType="Long">
+        delete from membership_order where order_id in 
+        <foreach item="orderId" collection="array" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+    </delete>
+
+    <!-- 更新订单状态 -->
+    <update id="updateOrderStatus">
+        update membership_order
+        set order_status = #{orderStatus},
+            update_time = now()
+        where order_id = #{orderId}
+    </update>
+
+    <!-- 更新订单为已支付 -->
+    <update id="updateOrderToPaid">
+        update membership_order
+        set order_status = 'PAID',
+            transaction_id = #{transactionId},
+            paid_time = now(),
+            update_time = now()
+        where order_id = #{orderId}
+          and order_status = 'PENDING'
+    </update>
+
+    <!-- 取消订单 -->
+    <update id="cancelOrder" parameterType="Long">
+        update membership_order
+        set order_status = 'CANCELLED',
+            update_time = now()
+        where order_id = #{orderId}
+          and order_status = 'PENDING'
+    </update>
+
+    <!-- 查询指定时间前的待支付订单 -->
+    <select id="selectPendingOrdersBeforeTime" resultMap="MembershipOrderResult">
+        <include refid="selectMembershipOrderVo"/>
+        where order_status = 'PENDING'
+          and create_time &lt; #{time}
+        order by create_time asc
+    </select>
+
+    <!-- 统计用户在指定时间范围内的消费总额 -->
+    <select id="selectTotalAmountByUserIdAndDateRange" resultType="java.math.BigDecimal">
+        select ifnull(sum(actual_amount), 0)
+        from membership_order
+        where user_id = #{userId}
+          and order_status = 'PAID'
+          and paid_time between #{startTime} and #{endTime}
+    </select>
+
+    <!-- 查询用户最近的已支付订单 -->
+    <select id="selectLatestPaidOrderByUserId" parameterType="Long" resultMap="MembershipOrderResult">
+        <include refid="selectMembershipOrderVo"/>
+        where user_id = #{userId}
+          and order_status = 'PAID'
+        order by paid_time desc
+        limit 1
+    </select>
+
+    <!-- 统计指定状态的订单数量 -->
+    <select id="countOrdersByUserIdAndStatus" resultType="int">
+        select count(*)
+        from membership_order
+        where user_id = #{userId}
+          and order_status = #{orderStatus}
+    </select>
+
+    <!-- 统计指定套餐类型的订单数量 -->
+    <select id="countOrdersByPackageType" parameterType="String" resultType="int">
+        select count(*)
+        from membership_order
+        where package_type = #{packageType}
+          and order_status = 'PAID'
+    </select>
+
+    <!-- 统计指定日期范围内的订单总额 -->
+    <select id="sumOrderAmountByDateRange" resultType="java.math.BigDecimal">
+        select ifnull(sum(actual_amount), 0)
+        from membership_order
+        where order_status = 'PAID'
+          and paid_time between #{startTime} and #{endTime}
+    </select>
+
+    <!-- 查询指定时间范围内的已支付订单列表 -->
+    <select id="selectPaidOrdersByDateRange" resultMap="MembershipOrderResult">
+        <include refid="selectMembershipOrderVo"/>
+        where order_status = 'PAID'
+          and paid_time between #{startTime} and #{endTime}
+        order by paid_time desc
+    </select>
+
+</mapper>
