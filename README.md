@@ -644,21 +644,21 @@ Authorization: Bearer {token}
 
 ### 商务合作
 
-- 📧 **邮箱**: business@ai-detection.com
-- 💬 **微信**: ai_detection_official
-- 📱 **电话**: +86 138-xxxx-xxxx
+- 📧 **邮箱**: 3223796353@qq.com
+- 💬 **微信**: 17716241663
+- 📱 **电话**: +86 17716241663
 
 ### 技术交流
 
-- 💬 **QQ群**: 123456789
-- 🐛 **问题反馈**: [GitHub Issues](https://github.com/your-username/ai-image-detection/issues)
-- 📖 **技术博客**: https://blog.ai-detection.com
+- 💬 **QQ群**: 暂无
+- 🐛 **问题反馈**: 暂无
+- 📖 **技术博客**: 暂无
 
 ### 社交媒体
 
-- 🐦 **Twitter**: @ai_detection
-- 📘 **知乎**: AI图像检测
-- 📺 **B站**: AI检测技术分享
+- 🐦 **Twitter**: @dengyangy
+- 📘 **知乎**: 暂无
+- 📺 **B站**: 暂无
 
 ---
 
