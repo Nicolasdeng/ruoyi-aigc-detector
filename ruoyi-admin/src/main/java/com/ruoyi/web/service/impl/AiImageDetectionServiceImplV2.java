@@ -8,6 +8,8 @@ import com.ruoyi.web.service.image.IDetectionAggregator;
 import com.ruoyi.web.service.image.IImageUploadService;
 import com.ruoyi.web.service.image.IImageAiModelDetector;
 import com.ruoyi.web.service.image.detector.IImageDetector;
+import com.ruoyi.web.service.image.advanced.AdvancedImageAnalyzer;
+import com.ruoyi.web.service.image.advanced.DeepLearningFeatureExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,7 +55,13 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
     
     @Autowired(required = false)
     private List<IImageAiModelDetector> aiModelDetectors; // 自动注入所有AI模型检测器
-    
+
+    @Autowired(required = false)
+    private AdvancedImageAnalyzer advancedImageAnalyzer; // 高级图片分析器
+
+    @Autowired(required = false)
+    private DeepLearningFeatureExtractor deepLearningFeatureExtractor; // 深度学习特征提取器
+
     private final ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     /**
@@ -79,24 +87,40 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
         try {
             // 3. 执行多引擎检测
             List<Map<String, Object>> detectionResults = performMultiDetectorCheck(fullPath);
-            
+
             // 4. 执行AI模型识别
             Map<String, Object> aiModelResult = performAiModelDetection(fullPath);
-            
-            // 5. 聚合结果
+
+            // 5. 执行高级分析（新增）
+            Map<String, Object> advancedAnalysis = performAdvancedAnalysis(fullPath);
+
+            // 6. 执行深度学习特征提取（新增）
+            Map<String, Object> deepFeatures = performDeepFeatureExtraction(fullPath);
+
+            // 7. 聚合结果
             Map<String, Object> aggregatedResult = detectionAggregator.aggregateResults(detectionResults);
-            
-            // 6. 合并AI模型识别结果
+
+            // 8. 合并AI模型识别结果
             if (aiModelResult != null && !aiModelResult.isEmpty()) {
                 aggregatedResult.put("aiModelDetection", aiModelResult);
             }
-            
-            // 7. 更新记录
+
+            // 9. 合并高级分析结果
+            if (advancedAnalysis != null && !advancedAnalysis.isEmpty()) {
+                aggregatedResult.put("advancedAnalysis", advancedAnalysis);
+            }
+
+            // 10. 合并深度特征
+            if (deepFeatures != null && !deepFeatures.isEmpty()) {
+                aggregatedResult.put("deepFeatures", deepFeatures);
+            }
+
+            // 11. 更新记录
             updateRecordWithResults(record, aggregatedResult);
-            
-            log.info("图片检测完成，用户ID: {} - 文件: {} - 结果: {} - 置信度: {}", 
+
+            log.info("图片检测完成，用户ID: {} - 文件: {} - 结果: {} - 置信度: {}",
                     userId, fileUrl, record.getDetectionResult(), record.getConfidenceScore());
-            
+
         } catch (Exception e) {
             log.error("图片检测失败: " + fileUrl, e);
             record.setStatus("FAILED");
@@ -127,24 +151,40 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
         try {
             // 3. 执行多引擎检测
             List<Map<String, Object>> detectionResults = performMultiDetectorCheck(localPath);
-            
+
             // 4. 执行AI模型识别
             Map<String, Object> aiModelResult = performAiModelDetection(localPath);
-            
-            // 5. 聚合结果
+
+            // 5. 执行高级分析（新增）
+            Map<String, Object> advancedAnalysis = performAdvancedAnalysis(localPath);
+
+            // 6. 执行深度学习特征提取（新增）
+            Map<String, Object> deepFeatures = performDeepFeatureExtraction(localPath);
+
+            // 7. 聚合结果
             Map<String, Object> aggregatedResult = detectionAggregator.aggregateResults(detectionResults);
-            
-            // 6. 合并AI模型识别结果
+
+            // 8. 合并AI模型识别结果
             if (aiModelResult != null && !aiModelResult.isEmpty()) {
                 aggregatedResult.put("aiModelDetection", aiModelResult);
             }
-            
-            // 7. 更新记录
+
+            // 9. 合并高级分析结果
+            if (advancedAnalysis != null && !advancedAnalysis.isEmpty()) {
+                aggregatedResult.put("advancedAnalysis", advancedAnalysis);
+            }
+
+            // 10. 合并深度特征
+            if (deepFeatures != null && !deepFeatures.isEmpty()) {
+                aggregatedResult.put("deepFeatures", deepFeatures);
+            }
+
+            // 11. 更新记录
             updateRecordWithResults(record, aggregatedResult);
-            
-            log.info("图片URL检测完成，用户ID: {} - 文件: {} - 结果: {} - 置信度: {}", 
+
+            log.info("图片URL检测完成，用户ID: {} - 文件: {} - 结果: {} - 置信度: {}",
                     userId, imageUrl, record.getDetectionResult(), record.getConfidenceScore());
-            
+
         } catch (Exception e) {
             log.error("图片URL检测失败: " + imageUrl, e);
             record.setStatus("FAILED");
@@ -349,7 +389,67 @@ public class AiImageDetectionServiceImplV2 implements IAiImageDetectionService {
         } catch (Exception e) {
             log.error("执行AI模型检测时发生错误: " + filePath, e);
         }
-        
+
+        return result;
+    }
+
+    /**
+     * 执行高级分析
+     * 使用频域分析、GAN指纹检测等高级技术
+     */
+    private Map<String, Object> performAdvancedAnalysis(String filePath) {
+        Map<String, Object> result = new HashMap<>();
+
+        if (advancedImageAnalyzer == null) {
+            log.warn("高级图片分析器未配置，跳过高级分析");
+            return result;
+        }
+
+        try {
+            BufferedImage image = ImageIO.read(new File(filePath));
+            if (image == null) {
+                log.warn("无法读取图片文件: {}", filePath);
+                return result;
+            }
+
+            result = advancedImageAnalyzer.performAdvancedAnalysis(image, filePath);
+            log.info("高级分析完成 - AI生成概率: {}",
+                    result.getOrDefault("aiGenerationProbability", "N/A"));
+
+        } catch (Exception e) {
+            log.error("执行高级分析时发生错误: " + filePath, e);
+        }
+
+        return result;
+    }
+
+    /**
+     * 执行深度学习特征提取
+     * 提取纹理、边缘、颜色等深度特征
+     */
+    private Map<String, Object> performDeepFeatureExtraction(String filePath) {
+        Map<String, Object> result = new HashMap<>();
+
+        if (deepLearningFeatureExtractor == null) {
+            log.warn("深度学习特征提取器未配置，跳过深度特征提取");
+            return result;
+        }
+
+        try {
+            BufferedImage image = ImageIO.read(new File(filePath));
+            if (image == null) {
+                log.warn("无法读取图片文件: {}", filePath);
+                return result;
+            }
+
+            result = deepLearningFeatureExtractor.extractDeepFeatures(image);
+            log.info("深度特征提取完成 - AI特征分数: {}",
+                    result.getOrDefault("aiFeatureScore", "N/A"));
+
+        } catch (Exception e) {
+            log.error("执行深度特征提取时发生错误: " + filePath, e);
+        }
+
         return result;
     }
 }

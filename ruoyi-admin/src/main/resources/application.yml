@@ -172,6 +172,21 @@ wechat:
     appid: wx0f425aa35ae69981
     # 小程序AppSecret（请在微信公众平台获取）
     secret: 16e980c2cae1a898719b518e7a3f16dd
+  
+  # 微信支付配置
+  pay:
+    # 微信支付商户号（请在微信支付商户平台获取 https://pay.weixin.qq.com）
+    mchId: YOUR_MCH_ID
+    # API V3密钥（32位字符串，在微信支付商户平台-账户中心-API安全设置）
+    apiV3Key: YOUR_API_V3_KEY_32_CHARACTERS_LONG
+    # 商户证书序列号（在微信支付商户平台-账户中心-API安全查看）
+    mchSerialNo: YOUR_MCH_SERIAL_NO
+    # 商户私钥文件路径（证书工具生成的apiclient_key.pem文件路径）
+    privateKeyPath: D:/ruoyi/cert/apiclient_key.pem
+    # 支付回调通知URL（需要是外网可访问的HTTPS地址）
+    notifyUrl: https://your-domain.com/api/wechat/pay/notify
+    # 退款回调通知URL（需要是外网可访问的HTTPS地址）
+    refundNotifyUrl: https://your-domain.com/api/wechat/pay/refund/notify
 
 # JWT配置
 jwt:

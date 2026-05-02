@@ -10,15 +10,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * DALL-E模型检测器
- * 
- * DALL-E特征：
- * 1. 色彩特征：高饱和度、自然色调、分布均匀
- * 2. 纹理细节：渲染质量高、细节丰富、边缘清晰
- * 3. 噪声质量：低噪点、高质量输出
- * 4. 风格构图：构图合理、专业感强
- * 5. AI指纹：文字处理能力强、光影真实
- * 
+ * DALL-E模型检测器（升级版 - 支持DALL-E 3）
+ *
+ * DALL-E 3新增特征：
+ * 1. 色彩特征：高饱和度、自然色调、分布均匀 - 权重提升
+ * 2. 纹理细节：渲染质量极高、细节极其丰富、边缘完美清晰
+ * 3. 噪声质量：几乎零噪点、超高质量输出
+ * 4. 风格构图：构图极其合理、专业感极强
+ * 5. AI指纹：文字处理完美、光影接近真实照片
+ * 6. 新增：超高清晰度检测、完美边缘检测
+ *
  * @author ruoyi
  */
 @Component
@@ -77,41 +78,44 @@ public class DallEModelDetector implements IImageAiModelDetector {
 
     /**
      * 分析色彩特征 (20分)
-     * DALL-E特点：高饱和度(8分)、色彩分布均匀(7分)、自然色调(5分)
+     * DALL-E 3特点：高饱和度(8分)、色彩分布极其均匀(7分)、自然色调(5分)
+     * 权重调整：更加重视色彩均匀度和饱和度
      */
     private double analyzeColorFeatures(BufferedImage image) {
         double score = 0.0;
 
         if (featureAnalyzer != null) {
-            // 1. 饱和度分析 (8分)
+            // 1. 饱和度分析 (8分) - DALL-E 3饱和度更高
             double saturation = featureAnalyzer.analyzeSaturation(image);
-            if (saturation > 0.6) {
-                score += 8.0 * (saturation - 0.6) / 0.4; // 饱和度0.6-1.0区间得分
+            if (saturation > 0.65) {
+                score += 8.0 * (saturation - 0.65) / 0.35;
+            } else if (saturation > 0.5) {
+                score += 5.0 * (saturation - 0.5) / 0.15;
             } else if (saturation > 0.4) {
-                score += 4.0 * (saturation - 0.4) / 0.2; // 饱和度0.4-0.6区间得分减半
+                score += 2.0 * (saturation - 0.4) / 0.1;
             }
 
-            // 2. 色彩分布均匀度 (7分)
+            // 2. 色彩分布极其均匀 (7分) - DALL-E 3的显著特征
             double uniformity = featureAnalyzer.analyzeColorUniformity(image);
-            if (uniformity > 0.7) {
-                score += 7.0 * (uniformity - 0.7) / 0.3; // 均匀度0.7-1.0区间得分
+            if (uniformity > 0.75) {
+                score += 7.0 * (uniformity - 0.75) / 0.25;
+            } else if (uniformity > 0.6) {
+                score += 4.0 * (uniformity - 0.6) / 0.15;
             } else if (uniformity > 0.5) {
-                score += 3.5 * (uniformity - 0.5) / 0.2; // 均匀度0.5-0.7区间得分减半
+                score += 2.0 * (uniformity - 0.5) / 0.1;
             }
 
-            // 3. 色调自然度 (5分) - DALL-E倾向自然色调
+            // 3. 色调自然度 (5分) - DALL-E 3更倾向自然色调
             double warmTone = featureAnalyzer.analyzeWarmTone(image);
-            if (warmTone >= 0.4 && warmTone <= 0.6) {
-                // 色调平衡(0.4-0.6)表示自然
+            if (warmTone >= 0.45 && warmTone <= 0.55) {
                 score += 5.0;
+            } else if (warmTone >= 0.35 && warmTone <= 0.65) {
+                score += 3.5;
             } else if (warmTone >= 0.3 && warmTone <= 0.7) {
-                score += 3.0;
-            } else {
-                score += 1.0;
+                score += 1.5;
             }
         } else {
-            // 降级为基础分析
-            score = 10.0; // 给予基础分
+            score = 10.0;
         }
 
         return Math.min(score, 20.0);
@@ -119,34 +123,39 @@ public class DallEModelDetector implements IImageAiModelDetector {
 
     /**
      * 分析纹理与细节特征 (20分)
-     * DALL-E特点：高频细节丰富(8分)、边缘清晰(7分)、纹理复杂(5分)
+     * DALL-E 3特点：高频细节极其丰富(8分)、边缘完美清晰(7分)、纹理极其复杂(5分)
+     * 权重调整：提高对细节和边缘的要求
      */
     private double analyzeTextureFeatures(BufferedImage image) {
         double score = 0.0;
 
         if (featureAnalyzer != null) {
-            // 1. 高频细节分析 (8分) - DALL-E细节丰富
+            // 1. 高频细节分析 (8分) - DALL-E 3细节极其丰富
             double highFreq = featureAnalyzer.analyzeHighFrequencyDetails(image);
-            if (highFreq > 0.5) {
-                score += 8.0 * (highFreq - 0.5) / 0.5;
+            if (highFreq > 0.65) {
+                score += 8.0 * (highFreq - 0.65) / 0.35;
+            } else if (highFreq > 0.5) {
+                score += 5.0 * (highFreq - 0.5) / 0.15;
             } else {
-                score += 4.0 * highFreq / 0.5;
+                score += 2.0 * highFreq / 0.5;
             }
 
-            // 2. 边缘锐度 (7分) - DALL-E边缘清晰
+            // 2. 边缘锐度 (7分) - DALL-E 3边缘完美清晰
             double edgeSharpness = featureAnalyzer.analyzeEdgeSharpness(image);
-            if (edgeSharpness > 0.6) {
-                score += 7.0 * (edgeSharpness - 0.6) / 0.4;
+            if (edgeSharpness > 0.7) {
+                score += 7.0 * (edgeSharpness - 0.7) / 0.3;
+            } else if (edgeSharpness > 0.55) {
+                score += 4.0 * (edgeSharpness - 0.55) / 0.15;
             } else {
-                score += 3.5 * edgeSharpness / 0.6;
+                score += 2.0 * edgeSharpness / 0.55;
             }
 
-            // 3. 纹理复杂度 (5分)
+            // 3. 纹理复杂度 (5分) - DALL-E 3纹理更复杂
             double textureComplexity = featureAnalyzer.analyzeTextureComplexity(image);
-            if (textureComplexity > 0.5) {
-                score += 5.0 * (textureComplexity - 0.5) / 0.5;
-            } else {
-                score += 2.5 * textureComplexity / 0.5;
+            if (textureComplexity > 0.6) {
+                score += 5.0 * (textureComplexity - 0.6) / 0.4;
+            } else if (textureComplexity > 0.45) {
+                score += 2.5 * (textureComplexity - 0.45) / 0.15;
             }
         } else {
             score = 10.0;
@@ -157,29 +166,34 @@ public class DallEModelDetector implements IImageAiModelDetector {
 
     /**
      * 分析噪声与质量特征 (20分)
-     * DALL-E特点：噪点密度低(10分)、整体质量高(10分)
+     * DALL-E 3特点：噪点密度极低(10分)、整体质量极高(10分)
+     * 权重调整：对噪点的要求更严格
      */
     private double analyzeNoiseFeatures(BufferedImage image) {
         double score = 0.0;
 
         if (featureAnalyzer != null) {
-            // 1. 噪点密度分析 (10分) - DALL-E噪点少
+            // 1. 噪点密度分析 (10分) - DALL-E 3几乎零噪点
             double noiseDensity = featureAnalyzer.analyzeNoiseDensity(image);
-            if (noiseDensity < 0.3) {
-                score += 10.0 * (0.3 - noiseDensity) / 0.3;
+            if (noiseDensity < 0.2) {
+                score += 10.0 * (0.2 - noiseDensity) / 0.2;
+            } else if (noiseDensity < 0.35) {
+                score += 5.0 * (0.35 - noiseDensity) / 0.15;
             } else if (noiseDensity < 0.5) {
-                score += 5.0 * (0.5 - noiseDensity) / 0.2;
+                score += 2.0 * (0.5 - noiseDensity) / 0.15;
             }
 
             // 2. 整体质量评估 (10分) - 综合对比度和清晰度
             double contrast = featureAnalyzer.analyzeContrast(image);
             double edgeSharpness = featureAnalyzer.analyzeEdgeSharpness(image);
             double qualityScore = (contrast + edgeSharpness) / 2.0;
-            
-            if (qualityScore > 0.7) {
-                score += 10.0 * (qualityScore - 0.7) / 0.3;
+
+            if (qualityScore > 0.75) {
+                score += 10.0 * (qualityScore - 0.75) / 0.25;
+            } else if (qualityScore > 0.6) {
+                score += 6.0 * (qualityScore - 0.6) / 0.15;
             } else {
-                score += 5.0 * qualityScore / 0.7;
+                score += 3.0 * qualityScore / 0.6;
             }
         } else {
             score = 10.0;
@@ -290,14 +304,14 @@ public class DallEModelDetector implements IImageAiModelDetector {
 
     @Override
     public String generateSuggestions(double score) {
-        if (score >= 80) {
-            return "图片特征与DALL-E生成高度吻合。建议：该图片很可能由DALL-E生成，具有高质量渲染、自然色调和清晰细节等典型特征。";
-        } else if (score >= 60) {
-            return "图片特征与DALL-E生成较为吻合。建议：该图片可能由DALL-E生成，但部分特征不够明显，建议结合其他检测器综合判断。";
-        } else if (score >= 40) {
-            return "图片特征与DALL-E生成部分吻合。建议：该图片可能由DALL-E或其他AI工具生成，需要进一步分析其他特征。";
+        if (score >= 85) {
+            return "图片特征与DALL-E 3生成高度吻合。该图片极可能由最新版DALL-E 3生成，具有超高质量渲染、自然色调、完美细节和极低噪点等顶级特征，接近照片级真实度。";
+        } else if (score >= 70) {
+            return "图片特征与DALL-E生成较为吻合。该图片很可能由DALL-E 3或DALL-E 2生成，具有高质量渲染和自然色调等典型特征，建议结合其他检测器综合判断。";
+        } else if (score >= 50) {
+            return "图片特征与DALL-E生成部分吻合。该图片可能由DALL-E或其他AI工具生成，部分特征不够明显，需要进一步分析其他特征。";
         } else {
-            return "图片特征与DALL-E生成不太吻合。建议：该图片不太可能由DALL-E生成，可能是其他AI工具或人工创作。";
+            return "图片特征与DALL-E生成不太吻合。该图片不太可能由DALL-E生成，可能是其他AI工具或人工创作。";
         }
     }
 
